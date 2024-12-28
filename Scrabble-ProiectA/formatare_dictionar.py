@@ -6,6 +6,9 @@ diacritic_map = {
     'Î': 'I',
     'Ț': 'T',
     'Ș': 'S',
+    'Ã': 'A', 
+    'Þ': 'T', 
+    'Š': 'S'
 }
 
 def replace_diacritics(text):
@@ -13,7 +16,7 @@ def replace_diacritics(text):
         text = text.replace(diacritic, replacement)
     return text
 
-file_path = r"C:\\Users\\Raluci\\OneDrive\\Desktop\\python\\Maximiuc_Teodora_3B2\\Scrabble-ProiectA"
+file_path = r"C:\\Users\\Raluci\\OneDrive\\Desktop\\python\\Maximiuc_Teodora_3B2\\Scrabble-ProiectA\\ro_RO.dic"
 
 with open(file_path, "rb") as f:
     raw_data = f.read()
