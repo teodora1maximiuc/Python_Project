@@ -113,7 +113,16 @@ special_tiles = {
     (14, 14): "x3_cuv",
     # STEA
     (7, 7): "stea",
+    (7, 5): "A"
 }
+for row in range(15):
+    for col in range(15):
+        if (row, col) not in special_tiles:
+            special_tiles[(row, col)] = ""
+current_word = {}
+current_letter = ""
+prev_letter_col = -1
+turn = 1
 def place_letter(row, col, letter):
     points = letter_points[letter]
     canvas = tk.Canvas(
@@ -127,8 +136,11 @@ def place_letter(row, col, letter):
         40 - 5, 40 - 5, text=str(points), font=("Montserrat", 8), fill="black", anchor="se"
     )
 def on_cell_click(row, col):
-    letter = "A"
-    place_letter(row, col, letter)
+    global current_letter
+    if current_letter != "":
+        place_letter(row, col, current_letter)
+        current_word[(row, col)] = current_letter
+        current_letter = ""
 def is_word_in_dict(word):
     file_path = r"C:\\Users\\Raluci\\OneDrive\\Desktop\\python\\Maximiuc_Teodora_3B2\\Scrabble-ProiectA\\ro_RO.dic"
     with open(file_path, 'r') as file:
@@ -136,6 +148,86 @@ def is_word_in_dict(word):
             if line.strip() == word:
                 return True
     return False
+
+def check_orizontal_extension(row, startCol, endCol):
+    i = 0
+    j = 0
+    while special_tiles[(row, startCol - i - 1)].isupper():
+        i += 1
+    while special_tiles[(row, endCol + j + 1)].isupper():
+        j += 1
+    return i, j
+
+def check_vertical_extension(startRow, endRow, col):
+    i = 0
+    j = 0
+    while special_tiles[(startRow - i - 1, col)].isupper():
+        i += 1
+    while special_tiles[(endRow + j + 1, col)].isupper():
+        j += 1
+    return i, j
+
+def validate_word():
+    global player_letters, temp_player_letters, root, turn, current_word
+    valid = 1
+    rows = [key[0] for key in current_word.keys()]
+    columns = [key[1] for key in current_word.keys()]
+    sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
+    current_word = {key: current_word[key] for key in sorted_keys}
+    if all(x == rows[0] for x in rows) or all(x == columns[0] for x in columns): 
+        if all(x == rows[0] for x in rows): # orizontal            
+            columns = [key[1] for key in current_word.keys()]
+            i = 0
+            j = 0
+            i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
+            print(f"{i} {j}")
+            pos = columns[0] - i
+        elif all(x == columns[0] for x in columns): # vertical
+            rows = [key[0] for key in current_word.keys()]
+            i = 0
+            j = 0
+            i, j = check_vertical_extension(rows[0], rows[len(rows)-1], columns[0])
+            pos = rows[0] - i
+        else: valid = 0
+    else: valid = 0
+    if valid == 1:
+        player_letters = temp_player_letters.copy()
+        print("Valid word!")
+        print(player_letters)
+        i = 0
+        for letter in player_letters:
+            if letter == '': 
+                if all(letter_counted == 0 for letter_counted in letter_counts):
+                    print("No more letters")
+                else:
+                    random_letter = random.choice(alphabet)
+                    while letter_counts[random_letter] == 0:
+                        random_letter = random.choice(alphabet)
+                    player_letters[i] = random_letter
+                    
+                    letter_counts[random_letter] -= 1
+            i += 1
+        print (player_letters)
+        temp_player_letters = player_letters.copy()
+        letter_frame_config(temp_player_letters)
+        for key, item in current_word.items():
+            special_tiles[key] = item
+            print(f"key = {key}; item = {item}")
+        current_word.clear()
+    elif valid == 0:
+        print("Invalid word!")
+        popup = tk.Toplevel(root)
+        popup.title("Invalid")
+        scrabble_width = root.winfo_screenwidth()
+        scrabble_height = root.winfo_screenheight()
+        popup_width = 200
+        popup_height = 50
+        top = (scrabble_height//2) - (popup_height//2)
+        right = (scrabble_width//2) - (popup_width//2)
+        popup.geometry(f"{popup_width}x{popup_height}+{right}+{top}")
+        text = "Cuvant invalid!\n"
+        label = tk.Label(popup, text=text, font=("Montserrat",12), justify="left", anchor="nw")
+        label.pack(padx=10, pady=10, fill="both", expand=True)
 player_letters = []
 computer_letters = []
 while len(player_letters) < 7:
@@ -143,6 +235,7 @@ while len(player_letters) < 7:
     if letter_counts[random_letter] != 0:
         player_letters.append(random_letter)
         letter_counts[random_letter] -= 1
+temp_player_letters = player_letters.copy()
 while len(computer_letters) < 7:
     random_letter = random.choice(alphabet)
     if letter_counts[random_letter] != 0:
@@ -253,11 +346,76 @@ letter_frame.place(
     width=letter_frame_width,
     height=letter_frame_height
 )
-def on_letter_frame_click():
-    i = 1
-def letter_frame_config (player_letters):
+def on_letter_frame_click(c, color):
+    global current_letter, prev_letter_col, temp_player_letters
+    if current_letter == "":
+        current_letter = temp_player_letters[c]
+        temp_player_letters[c] = ""
+        for col in range(7):
+            letter = temp_player_letters[col]
+            if letter == "":
+                points = "\n"
+                bg = "white"
+            else:
+                points = letter_points[letter]
+                bg = "#dec5b6"
+            btn = tk.Button(
+                letter_frame,
+                text=f"{letter}\n{points}",
+                font=("Montserrat", 12, "bold"),
+                bg=bg,
+                relief="ridge",
+                width=3,
+                height=3,
+                anchor="n",
+                justify="center",
+                command=lambda c=col, color=bg: on_letter_frame_click(c, color)
+            )
+            btn.grid(row=0, column=col, sticky="nsew")
+    elif current_letter != "":
+        clicked_letter = temp_player_letters[c]
+        temp_player_letters[c] = current_letter
+        points = letter_points[current_letter]
+        bg = "#dec5b6"
+        btn = tk.Button(
+            letter_frame,
+            text=f"{temp_player_letters[c]}\n{points}",
+            font=("Montserrat", 12, "bold"),
+            bg=bg,
+            relief="ridge",
+            width=3,
+            height=3,
+            anchor="n",
+            justify="center",
+            command=lambda c=c, color=bg: on_letter_frame_click(c, color)
+        )
+        btn.grid(row=0, column=c, sticky="nsew")
+        if c != prev_letter_col:
+            temp_player_letters[prev_letter_col] = clicked_letter
+            if clicked_letter == "":
+                points = "\n"
+                bg = "white"
+            else:
+                points = letter_points[clicked_letter]
+            btn = tk.Button(
+                letter_frame,
+                text=f"{temp_player_letters[prev_letter_col]}\n{points}",
+                font=("Montserrat", 12, "bold"),
+                bg=bg,
+                relief="ridge",
+                width=3,
+                height=3,
+                anchor="n",
+                justify="center",
+                command=lambda c=prev_letter_col, color=bg: on_letter_frame_click(c, color)
+            )
+            btn.grid(row=0, column=prev_letter_col, sticky="nsew")
+        current_letter = ""
+    prev_letter_col = c
+
+def letter_frame_config (temp_player_letters):
     for col in range(7):
-        letter = player_letters[col]
+        letter = temp_player_letters[col]
         points = letter_points[letter]
         
         btn = tk.Button(
@@ -270,8 +428,43 @@ def letter_frame_config (player_letters):
             height=3,
             anchor="n",
             justify="center",
-            command=lambda : on_letter_frame_click()
+            command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
         )
         btn.grid(row=0, column=col, sticky="nsew")
-letter_frame_config(player_letters)
+letter_frame_config(temp_player_letters)
+done_label = tk.Button(
+    text_frame,
+    text="Done",
+    bg="white",
+    justify="center",
+    font=("Montserrat", 16, "bold"),
+    anchor="center",
+    command=validate_word
+)
+done_label.place(x=0, y=230, width=400, height=50)
+switch_label = tk.Button(
+    text_frame,
+    text="Switch",
+    bg="white",
+    justify="center",
+    font=("Montserrat", 16, "bold"),
+    anchor="center",
+    command=show_info_popup
+)
+switch_label.place(x=0, y=280, width=400, height=50)
+def undo():
+    global temp_player_letters, player_letters, current_word
+
+undo_label = tk.Button(
+    text_frame,
+    text="Undo",
+    bg="white",
+    justify="center",
+    font=("Montserrat", 16, "bold"),
+    anchor="center",
+    command=undo
+)
+undo_label.place(x=0, y=330, width=400, height=50)
+root.mainloop()
+
 root.mainloop()
