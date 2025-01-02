@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
 import random
-import string
 alphabet = ['A', 'B', 'C', 'D',
     'E', 'F', 'G', 'H', 
     'I', 'J', 'L', 'M', 
@@ -621,6 +620,4 @@ undo_label = tk.Button(
     command=undo
 )
 undo_label.place(x=0, y=330, width=400, height=50)
-root.mainloop()
-
 root.mainloop()
