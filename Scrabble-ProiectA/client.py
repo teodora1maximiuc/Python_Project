@@ -1,6 +1,7 @@
 import socket
 import tkinter as tk
 import threading
+import json
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect(('127.0.0.1', 12345))
@@ -23,19 +24,26 @@ def ready():
     threading.Thread(target=check_game_start, daemon=True).start()
 
 def check_game_start():
-    global game_started
+    global game_started, client_socket
     while not game_started:
         try:
-            data = client_socket.recv(1024).decode('utf-8')
-            if data == "Game has started!":
+            data = client_socket.recv(1600).decode('utf-8')
+            parsed_data = json.loads(data)
+            print(parsed_data['message'])
+            print(parsed_data['special_tiles']) 
+            if parsed_data['message'] == "Game has started!":
                 info_label.config(text="Game has started!")
                 print("Game started")
                 game_started = True
+                handle_client()
                 break
         except (ConnectionResetError, ConnectionAbortedError) as e:
             info_label.config(text="Game already in progress.")
-            print("Connection lost. Please try again later.")
             break
+
+def handle_client():
+    data = client_socket.recv(1600).decode('utf-8')
+    print("Received game data:", data)
 
 menu = tk.Tk()
 menu.title("Scrabble")
