@@ -1,6 +1,7 @@
 import socket
 import threading
 import json
+import random
 
 alphabet = ['A', 'B', 'C', 'D',
     'E', 'F', 'G', 'H', 
@@ -119,7 +120,7 @@ special_tiles = {
     # (9, 7): "A",
 }
 special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
-
+turn = 0
 game_started = False
 ready_count = 0
 clients = []
@@ -127,7 +128,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(('127.0.0.1', 12345))
 server.listen(4)
 
-def handle_client(client_socket): 
+def handle_client(client_socket, player_id): 
     global ready_count, game_started, clients
     print(clients)
     try:
@@ -142,19 +143,37 @@ def handle_client(client_socket):
                 print(f"{ready_count} = {len(clients)}?")
                 if ready_count == len(clients):
                     game_started = True
+                    player_letters = []
+                    while len(player_letters) < 7:
+                        random_letter = random.choice(alphabet)
+                        if letter_counts[random_letter] != 0:
+                            player_letters.append(random_letter)
+                            letter_counts[random_letter] -= 1
                     data = {
                         'message': "Game has started!",
                         'special_tiles': special_tiles_str_keys,
+                        'letters': player_letters
                     }
                     print("sending...")
                     for client in clients:
                         client.sendall(json.dumps(data).encode('utf-8'))
+        handle_player_game(client_socket, player_id)
     except (ConnectionResetError, BrokenPipeError):
         print("Client disconnected unexpectedly.")
+
+def handle_player_game(client_socket, player_id):
+    global turn
+    while True:
+        try: 
+            i = 1
+        except (ConnectionResetError, BrokenPipeError):
+            print(f"Player {player_id} disconnected.")
+            break
 
 while len(clients) < 4:
     if not game_started:
         client_socket, client_address = server.accept()
+        player_id = len(clients)
         clients.append(client_socket)
         print(f"New client connected. Total clients: {len(clients)}")
-        threading.Thread(target=handle_client, args=(client_socket,)).start()
+        threading.Thread(target=handle_client, args=(client_socket, player_id)).start()
