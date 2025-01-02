@@ -113,10 +113,10 @@ special_tiles = {
     (14, 14): "x3_cuv",
     # STEA
     (7, 7): "stea",
-    (7, 6): "M",
+    (6, 7): "M",
     (7, 7): "A",
-    (7, 8): "S",
-    (7, 9): "A",
+    (8, 7): "S",
+    (9, 7): "A",
 }
 for row in range(15):
     for col in range(15):
@@ -224,8 +224,8 @@ def get_vertical_word(i, j, row, col):
         elif (pos, col) in current_word:
             word += current_word[(pos, col)]
             add, mul = apply_bonus(pos, col)
-        word_points += add
-        to_multiply *= mul
+            word_points += add
+            to_multiply *= mul
         pos += 1
     word_points *= to_multiply
     return word, word_points
@@ -273,6 +273,8 @@ def validate_word():
                         print(f"add = {add}")
                         words_to_check.append(word)
                         word_points += add
+                if len(current_word) == 1 and len(words_to_check) != 1:
+                    words_to_check = words_to_check[1:]
                 print(words_to_check)
                 if not check_words_in_dict(words_to_check):
                     valid = 0
@@ -282,6 +284,7 @@ def validate_word():
             i = 0
             j = 0
             i, j = check_vertical_extension(rows[0], rows[len(rows)-1], columns[0])
+            print(f"{i} si {j}")
             pos = rows[0] - i
             word_points = 0
             to_multiply = 1
@@ -309,6 +312,8 @@ def validate_word():
                         print(f"add = {add}")
                         words_to_check.append(word)
                         word_points += add
+                if len(current_word) == 1 and len(words_to_check) != 1:
+                    words_to_check = words_to_check[1:]
                 print(words_to_check)
                 if not check_words_in_dict(words_to_check):
                     valid = 0
@@ -581,6 +586,30 @@ switch_label = tk.Button(
 switch_label.place(x=0, y=280, width=400, height=50)
 def undo():
     global temp_player_letters, player_letters, current_word
+    current_word.clear()
+    place_special_tiles()
+    temp_player_letters = player_letters.copy()
+    for col in range(7):
+        letter = player_letters[col]
+        if letter == "":
+            points = "\n"
+            bg = "white"
+        else:
+            points = letter_points[letter]
+            bg = "#dec5b6"
+        btn = tk.Button(
+            letter_frame,
+            text=f"{letter}\n{points}",
+            font=("Montserrat", 12, "bold"),
+            bg=bg,
+            relief="ridge",
+            width=3,
+            height=3,
+            anchor="n",
+            justify="center",
+            command=lambda c=col, color=bg: on_letter_frame_click(c, color)
+        )
+        btn.grid(row=0, column=col, sticky="nsew")
 
 undo_label = tk.Button(
     text_frame,
