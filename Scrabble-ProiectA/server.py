@@ -149,24 +149,24 @@ def check_words_in_dict(words):
 def check_orizontal_extension(row, startCol, endCol):
     i = 0
     j = 0
-    while special_tiles[(row, startCol - i - 1)].isupper():
+    while special_tiles.get((row, startCol - i - 1), "").isupper():
         i += 1
-    while special_tiles[(row, endCol + j + 1)].isupper():
+    while special_tiles.get((row, endCol + j + 1), "").isupper():
         j += 1
     return i, j
 
 def check_vertical_extension(startRow, endRow, col):
     i = 0
     j = 0
-    while special_tiles[(startRow - i - 1, col)].isupper():
+    while special_tiles.get((startRow - i - 1, col), "").isupper():
         i += 1
-    while special_tiles[(endRow + j + 1, col)].isupper():
+    while special_tiles.get((endRow + j + 1, col), "").isupper():
         j += 1
     return i, j
 
 def apply_bonus(row, col, current_word):
     global special_tiles
-    tile_type = special_tiles[(row, col)]
+    tile_type = special_tiles.get((row, col), "")
     word_points = 0
     to_multiply = 1
     if tile_type == "":
@@ -187,7 +187,7 @@ def get_orizontal_word(i, j, row, col, current_word):
     word = ""
     pos = col - i
     while pos != col + j + 1:
-        if special_tiles[(row, pos)].isupper():
+        if special_tiles.get((row, pos), "").isupper():
             word += special_tiles[(row, pos)]
             add = letter_points[special_tiles[((row, pos))]]
         elif (row, pos) in current_word: 
@@ -205,7 +205,7 @@ def get_vertical_word(i, j, row, col, current_word):
     word = ""
     pos = row - i
     while pos != row + j + 1:
-        if special_tiles[(pos, col)].isupper():
+        if special_tiles.get((pos, col), "").isupper():
             word += special_tiles[((pos, col))]
             add = letter_points[special_tiles[((pos, col))]]
         elif (pos, col) in current_word:
@@ -217,7 +217,7 @@ def get_vertical_word(i, j, row, col, current_word):
     word_points *= to_multiply
     return word, word_points
 
-def validate_word(player_letters, current_word):
+def validate_word(player_id, player_letters, current_word):
     global turn
     valid = 1
     rows = [key[0] for key in current_word.keys()]
@@ -237,7 +237,7 @@ def validate_word(player_letters, current_word):
             word_points = 0
             to_multiply = 1
             while pos != columns[len(columns)-1] + j + 1:
-                if special_tiles[(rows[0], pos)].isupper():
+                if special_tiles.get((rows[0], pos), "").isupper():
                     word += special_tiles[(rows[0], pos)]
                     word_points += letter_points[special_tiles[(rows[0], pos)]]
                 elif (rows[0], pos) in current_word: 
@@ -323,12 +323,15 @@ def validate_word(player_letters, current_word):
                     
                     letter_counts[random_letter] -= 1
             i += 1
+        players_letters[player_id] = player_letters.copy()
         for key, item in current_word.items():
             special_tiles[key] = item
             print(f"key = {key}; item = {item}")
         current_word.clear()
+        return 1
     elif valid == 0:
         print("Invalid word!")
+        return 0
 
 turn_lock = threading.Lock()
 
@@ -345,9 +348,25 @@ def handle_player_game():
                         'letters': players_letters[player_id_num]
                     }
                     client_socket.sendall(json.dumps(data).encode('utf-8'))
-                    current_word = client_socket.recv(1600).decode('utf-8')
+                    answer = client_socket.recv(1600).decode('utf-8')
+                    current_word_str_key = json.loads(answer)
+                    print(current_word_str_key)
+                    current_word = {
+                        tuple(map(int, key.split(','))): value
+                        for key, value in current_word_str_key.items()
+                    }
                     print(current_word)
-                    # validate_word(players_letters[player_id_num], current_word)
+                    while validate_word(player_id_num, players_letters[player_id_num], current_word) == 0:
+                        client_socket.sendall("invalid".encode('utf-8'))
+                        answer = client_socket.recv(1600).decode('utf-8')
+                        current_word_str_key = json.loads(answer)
+                        print(current_word_str_key)
+                        current_word = {
+                            tuple(map(int, key.split(','))): value
+                            for key, value in current_word_str_key.items()
+                        }
+                    if validate_word(player_id_num, players_letters[player_id_num], current_word) == 1:
+                        client_socket.sendall("corect".encode('utf-8'))
                     turn = (turn + 1) % len(clients)
                 else:
                     data = {

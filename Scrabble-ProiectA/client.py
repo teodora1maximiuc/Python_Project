@@ -60,6 +60,66 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect(('127.0.0.1', 12345))
 
 game_started = False
+def place_letter(row, col, letter):
+    global board_frame
+    points = letter_points[letter]
+    canvas = tk.Canvas(
+        board_frame, width=40, height=40, bg="#dec5b6", highlightthickness=0
+    )
+    canvas.grid(row=row, column=col, sticky="nsew")
+    canvas.create_text(
+        40 // 2, 40 // 2, text=letter, font=("Montserrat", 16), fill="black"
+    )
+    canvas.create_text(
+        40 - 5, 40 - 5, text=str(points), font=("Montserrat", 8), fill="black", anchor="se"
+    )
+
+def ready():
+    global game_started
+    ready_canvas = tk.Canvas(
+        menu, width=600, height=140, bg="#a2d698", highlightthickness=0
+    )
+    ready_canvas.create_text(
+        600 // 2, 140 // 2, text="You are ready", font=("Montserrat", 16), fill="black"
+    )
+    ready_canvas.place(x=0, y=140, width=600, height=140) 
+    ready_button.config(state=tk.DISABLED, text="You are ready")
+    info_label.config(text="Waiting for others...")
+    client_socket.sendall(b"ready")
+    menu.destroy()
+    check_game_start()
+
+def check_game_start():
+    global game_started, client_socket, special_tiles, player_letters, temp_player_letters
+    while not game_started:
+        try:
+            data = client_socket.recv(1600).decode('utf-8')
+            parsed_data = json.loads(data)
+            print(parsed_data['message'])
+            print(parsed_data['special_tiles']) 
+            special_tiles = {
+                tuple(map(int, key.split(','))): value
+                for key, value in parsed_data['special_tiles'].items()
+            }
+            player_letters = parsed_data['letters']
+            temp_player_letters = player_letters.copy()
+            if parsed_data['message'] != "":
+                print("Game started")
+                game_started = True
+                handle_client()
+                break
+        except (ConnectionResetError, ConnectionAbortedError) as e:
+            info_label.config(text="Game already in progress.")
+            break
+
+"""SCRABBLE GAME - ELEMENTE"""
+            # vvvv
+def on_cell_click(row, col):
+    global current_letter
+    if current_letter != "":
+        place_letter(row, col, current_letter)
+        current_word[(row, col)] = current_letter
+        current_letter = ""
 def place_special_tiles(): 
     cells = [[None for _ in range(15)] for _ in range(15)]
     cell_size = 600 // 15
@@ -97,86 +157,155 @@ def place_special_tiles():
     for i in range(15):
         board_frame.grid_rowconfigure(i, weight=1)
         board_frame.grid_columnconfigure(i, weight=1)
-def place_letter(row, col, letter):
-    global board_frame
-    points = letter_points[letter]
-    canvas = tk.Canvas(
-        board_frame, width=40, height=40, bg="#dec5b6", highlightthickness=0
-    )
-    canvas.grid(row=row, column=col, sticky="nsew")
-    canvas.create_text(
-        40 // 2, 40 // 2, text=letter, font=("Montserrat", 16), fill="black"
-    )
-    canvas.create_text(
-        40 - 5, 40 - 5, text=str(points), font=("Montserrat", 8), fill="black", anchor="se"
-    )
-def on_cell_click(row, col):
-    global current_letter
-    if current_letter != "":
-        place_letter(row, col, current_letter)
-        current_word[(row, col)] = current_letter
+
+def on_letter_frame_click(c, color):
+    global current_letter, prev_letter_col, temp_player_letters
+    if current_letter == "":
+        current_letter = temp_player_letters[c]
+        temp_player_letters[c] = ""
+        for col in range(7):
+            letter = temp_player_letters[col]
+            if letter == "":
+                points = "\n"
+                bg = "white"
+            else:
+                points = letter_points[letter]
+                bg = "#dec5b6"
+            btn = tk.Button(
+                letter_frame,
+                text=f"{letter}\n{points}",
+                font=("Montserrat", 12, "bold"),
+                bg=bg,
+                relief="ridge",
+                width=3,
+                height=3,
+                anchor="n",
+                justify="center",
+                command=lambda c=col, color=bg: on_letter_frame_click(c, color)
+            )
+            btn.grid(row=0, column=col, sticky="nsew")
+    elif current_letter != "":
+        clicked_letter = temp_player_letters[c]
+        temp_player_letters[c] = current_letter
+        points = letter_points[current_letter]
+        bg = "#dec5b6"
+        btn = tk.Button(
+            letter_frame,
+            text=f"{temp_player_letters[c]}\n{points}",
+            font=("Montserrat", 12, "bold"),
+            bg=bg,
+            relief="ridge",
+            width=3,
+            height=3,
+            anchor="n",
+            justify="center",
+            command=lambda c=c, color=bg: on_letter_frame_click(c, color)
+        )
+        btn.grid(row=0, column=c, sticky="nsew")
+        if c != prev_letter_col:
+            temp_player_letters[prev_letter_col] = clicked_letter
+            if clicked_letter == "":
+                points = "\n"
+                bg = "white"
+            else:
+                points = letter_points[clicked_letter]
+            btn = tk.Button(
+                letter_frame,
+                text=f"{temp_player_letters[prev_letter_col]}\n{points}",
+                font=("Montserrat", 12, "bold"),
+                bg=bg,
+                relief="ridge",
+                width=3,
+                height=3,
+                anchor="n",
+                justify="center",
+                command=lambda c=prev_letter_col, color=bg: on_letter_frame_click(c, color)
+            )
+            btn.grid(row=0, column=prev_letter_col, sticky="nsew")
         current_letter = ""
+    prev_letter_col = c
 
-def ready():
-    global game_started
-    ready_canvas = tk.Canvas(
-        menu, width=600, height=140, bg="#a2d698", highlightthickness=0
-    )
-    ready_canvas.create_text(
-        600 // 2, 140 // 2, text="You are ready", font=("Montserrat", 16), fill="black"
-    )
-    ready_canvas.place(x=0, y=140, width=600, height=140) 
-    ready_button.config(state=tk.DISABLED, text="You are ready")
-    info_label.config(text="Waiting for others...")
-    client_socket.sendall(b"ready")
-    check_game_start()
+def letter_frame_config (temp_player_letters):
+    for col in range(7):
+        letter = temp_player_letters[col]
+        points = letter_points[letter]
+        
+        btn = tk.Button(
+            letter_frame,
+            text=f"{letter}\n{points}",
+            font=("Montserrat", 12, "bold"),
+            bg="#dec5b6",
+            relief="ridge",
+            width=3,
+            height=3,
+            anchor="n",
+            justify="center",
+            command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
+        )
+        btn.grid(row=0, column=col, sticky="nsew")
 
-def check_game_start():
-    global game_started, client_socket, special_tiles, player_letters, temp_player_letters
-    while not game_started:
-        try:
-            data = client_socket.recv(1600).decode('utf-8')
-            parsed_data = json.loads(data)
-            print(parsed_data['message'])
-            print(parsed_data['special_tiles']) 
-            special_tiles = {
-                tuple(map(int, key.split(','))): value
-                for key, value in parsed_data['special_tiles'].items()
-            }
-            player_letters = parsed_data['letters']
-            temp_player_letters = player_letters.copy()
-            if parsed_data['message'] != "":
-                info_label.config(text="Game has started!")
-                print("Game started")
-                game_started = True
-                handle_client()
-                break
-        except (ConnectionResetError, ConnectionAbortedError) as e:
-            info_label.config(text="Game already in progress.")
-            break
-
+def undo():
+    global temp_player_letters, player_letters, current_word
+    current_word.clear()
+    place_special_tiles()
+    temp_player_letters = player_letters.copy()
+    for col in range(7):
+        letter = player_letters[col]
+        if letter == "":
+            points = "\n"
+            bg = "white"
+        else:
+            points = letter_points[letter]
+            bg = "#dec5b6"
+        btn = tk.Button(
+            letter_frame,
+            text=f"{letter}\n{points}",
+            font=("Montserrat", 12, "bold"),
+            bg=bg,
+            relief="ridge",
+            width=3,
+            height=3,
+            anchor="n",
+            justify="center",
+            command=lambda c=col, color=bg: on_letter_frame_click(c, color)
+        )
+        btn.grid(row=0, column=col, sticky="nsew")
+            # ^^^^^
+"""SCRABBLE GAME - ELEMENTE"""
 def send_word():
     print (current_word)
     current_word_str_key = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
     client_socket.sendall(json.dumps(current_word_str_key).encode('utf-8'))
+    answer = client_socket.recv(1600).decode('utf-8')
+    if answer == "correct":
+        print("My turn is done!!!!")
+    elif answer == "invalid":
+        print("Invalid word")
+        undo()
 
 def handle_client():
-    global board_frame
-    menu.destroy()
+    global root, board_frame, text_frame, letter_frame
     root = tk.Tk()
     root.title("Scrabble")
     root.geometry("1000x600")
     root.resizable(False, False)
-
+        
     board_frame = tk.Frame(root, bg="lightblue", width=600, height=600)
     board_frame.grid(row=0, column=0, padx=0, pady=0)
     board_frame.grid_propagate(False)
-    
-    place_special_tiles()
 
     text_frame = tk.Frame(root, bg="white", width=400, height=600)
     text_frame.grid(row=0, column=1, padx=0, pady=0, sticky="nsew")
     text_frame.grid_propagate(False)
+
+    letter_frame = tk.Frame(text_frame, bg="white", width=400, height=50)
+    letter_frame.grid(row=0, column=0, padx=0, pady=0)
+    letter_frame.grid_propagate(False)
+    letter_frame_height = 40
+    letter_frame_width = 280
+    
+    place_special_tiles()
+    letter_frame_config(temp_player_letters)
 
     title_label = tk.Label(
         text_frame,
@@ -220,11 +349,6 @@ def handle_client():
         command=show_info_popup
     )
     button_label.place(x=0, y=100, width=400, height=50)
-    letter_frame = tk.Frame(text_frame, bg="white", width=400, height=50)
-    letter_frame.grid(row=0, column=0, padx=0, pady=0)
-    letter_frame.grid_propagate(False)
-    letter_frame_height = 40
-    letter_frame_width = 280
 
     letter_frame.place(
         x=(400 - letter_frame_width) // 2,
@@ -232,93 +356,7 @@ def handle_client():
         width=letter_frame_width,
         height=letter_frame_height
     )
-    def on_letter_frame_click(c, color):
-        global current_letter, prev_letter_col, temp_player_letters
-        if current_letter == "":
-            current_letter = temp_player_letters[c]
-            temp_player_letters[c] = ""
-            for col in range(7):
-                letter = temp_player_letters[col]
-                if letter == "":
-                    points = "\n"
-                    bg = "white"
-                else:
-                    points = letter_points[letter]
-                    bg = "#dec5b6"
-                btn = tk.Button(
-                    letter_frame,
-                    text=f"{letter}\n{points}",
-                    font=("Montserrat", 12, "bold"),
-                    bg=bg,
-                    relief="ridge",
-                    width=3,
-                    height=3,
-                    anchor="n",
-                    justify="center",
-                    command=lambda c=col, color=bg: on_letter_frame_click(c, color)
-                )
-                btn.grid(row=0, column=col, sticky="nsew")
-        elif current_letter != "":
-            clicked_letter = temp_player_letters[c]
-            temp_player_letters[c] = current_letter
-            points = letter_points[current_letter]
-            bg = "#dec5b6"
-            btn = tk.Button(
-                letter_frame,
-                text=f"{temp_player_letters[c]}\n{points}",
-                font=("Montserrat", 12, "bold"),
-                bg=bg,
-                relief="ridge",
-                width=3,
-                height=3,
-                anchor="n",
-                justify="center",
-                command=lambda c=c, color=bg: on_letter_frame_click(c, color)
-            )
-            btn.grid(row=0, column=c, sticky="nsew")
-            if c != prev_letter_col:
-                temp_player_letters[prev_letter_col] = clicked_letter
-                if clicked_letter == "":
-                    points = "\n"
-                    bg = "white"
-                else:
-                    points = letter_points[clicked_letter]
-                btn = tk.Button(
-                    letter_frame,
-                    text=f"{temp_player_letters[prev_letter_col]}\n{points}",
-                    font=("Montserrat", 12, "bold"),
-                    bg=bg,
-                    relief="ridge",
-                    width=3,
-                    height=3,
-                    anchor="n",
-                    justify="center",
-                    command=lambda c=prev_letter_col, color=bg: on_letter_frame_click(c, color)
-                )
-                btn.grid(row=0, column=prev_letter_col, sticky="nsew")
-            current_letter = ""
-        prev_letter_col = c
 
-    def letter_frame_config (temp_player_letters):
-        for col in range(7):
-            letter = temp_player_letters[col]
-            points = letter_points[letter]
-            
-            btn = tk.Button(
-                letter_frame,
-                text=f"{letter}\n{points}",
-                font=("Montserrat", 12, "bold"),
-                bg="#dec5b6",
-                relief="ridge",
-                width=3,
-                height=3,
-                anchor="n",
-                justify="center",
-                command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
-            )
-            btn.grid(row=0, column=col, sticky="nsew")
-
-    letter_frame_config(temp_player_letters)
     done_label = tk.Button(
         text_frame,
         text="Done",
@@ -339,32 +377,6 @@ def handle_client():
         command=show_info_popup
     )
     switch_label.place(x=0, y=280, width=400, height=50)
-    def undo():
-        global temp_player_letters, player_letters, current_word
-        current_word.clear()
-        place_special_tiles()
-        temp_player_letters = player_letters.copy()
-        for col in range(7):
-            letter = player_letters[col]
-            if letter == "":
-                points = "\n"
-                bg = "white"
-            else:
-                points = letter_points[letter]
-                bg = "#dec5b6"
-            btn = tk.Button(
-                letter_frame,
-                text=f"{letter}\n{points}",
-                font=("Montserrat", 12, "bold"),
-                bg=bg,
-                relief="ridge",
-                width=3,
-                height=3,
-                anchor="n",
-                justify="center",
-                command=lambda c=col, color=bg: on_letter_frame_click(c, color)
-            )
-            btn.grid(row=0, column=col, sticky="nsew")
 
     undo_label = tk.Button(
         text_frame,
@@ -376,7 +388,9 @@ def handle_client():
         command=undo
     )
     undo_label.place(x=0, y=330, width=400, height=50)
+    print("boo")
     root.mainloop()
+    menu.destroy()
 
 menu = tk.Tk()
 menu.title("Scrabble")
@@ -413,5 +427,4 @@ info_label = tk.Label(
     anchor="center"
 )
 info_label.place(x=0, y=280, width=600, height=120)
-
 menu.mainloop()
