@@ -48,6 +48,10 @@ valid_2_letter_words = [
 ]
 special_tiles = {}
 player_letters = []
+temp_player_letters = []
+current_word = {}
+current_letter = ""
+prev_letter_col = -1
 for row in range(15):
     for col in range(15):
         if (row, col) not in special_tiles:
@@ -56,8 +60,45 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect(('127.0.0.1', 12345))
 
 game_started = False
+def place_special_tiles(): 
+    cells = [[None for _ in range(15)] for _ in range(15)]
+    cell_size = 600 // 15
+    for row in range(15):
+        for col in range(15):
+            tile_type = special_tiles.get((row, col), "")
+            if tile_type == "x2_cuv":
+                bg_color = "pink"
+                text = "x2C"
+            elif tile_type == "x3_litera":
+                bg_color = "silver"
+                text = "x3L"
+            elif tile_type == "x2_litera":
+                bg_color = "lightblue"
+                text = "x2L"
+            elif tile_type == "x3_cuv":
+                bg_color = "#F08080"
+                text = "x3C"
+            elif tile_type == "stea":
+                bg_color = "silver"
+                text = "★" 
+            elif tile_type != "":
+                place_letter(row, col, tile_type)
+                continue
+            else:
+                bg_color = "white"
+                text = " "
+            cell = tk.Button(
+                board_frame, text=text, font=("Montserrat", 12), bg=bg_color, relief="ridge", width=cell_size, height=int(cell_size * 0.5),
+                command=lambda r=row, c=col: on_cell_click(r, c)
+            )
+            cell.grid(row=row, column=col, sticky="nsew")
+            cells[row][col] = cell
 
+    for i in range(15):
+        board_frame.grid_rowconfigure(i, weight=1)
+        board_frame.grid_columnconfigure(i, weight=1)
 def place_letter(row, col, letter):
+    global board_frame
     points = letter_points[letter]
     canvas = tk.Canvas(
         board_frame, width=40, height=40, bg="#dec5b6", highlightthickness=0
@@ -89,18 +130,22 @@ def ready():
     ready_button.config(state=tk.DISABLED, text="You are ready")
     info_label.config(text="Waiting for others...")
     
-    threading.Thread(target=check_game_start, daemon=True).start()
+    check_game_start()
 
 def check_game_start():
-    global game_started, client_socket, special_tiles, player_letters
+    global game_started, client_socket, special_tiles, player_letters, temp_player_letters
     while not game_started:
         try:
             data = client_socket.recv(1600).decode('utf-8')
             parsed_data = json.loads(data)
             print(parsed_data['message'])
             print(parsed_data['special_tiles']) 
-            special_tiles = parsed_data['special_tiles']
+            special_tiles = {
+                tuple(map(int, key.split(','))): value
+                for key, value in parsed_data['special_tiles'].items()
+            }
             player_letters = parsed_data['letters']
+            temp_player_letters = player_letters.copy()
             if parsed_data['message'] == "Game has started!":
                 info_label.config(text="Game has started!")
                 print("Game started")
@@ -112,9 +157,7 @@ def check_game_start():
             break
 
 def handle_client():
-    current_word = {}
-    current_letter = ""
-    prev_letter_col = -1
+    global board_frame
     
     root = tk.Tk()
     root.title("Scrabble")
@@ -124,43 +167,7 @@ def handle_client():
     board_frame = tk.Frame(root, bg="lightblue", width=600, height=600)
     board_frame.grid(row=0, column=0, padx=0, pady=0)
     board_frame.grid_propagate(False)
-    def place_special_tiles(): 
-        cells = [[None for _ in range(15)] for _ in range(15)]
-        cell_size = 600 // 15
-        for row in range(15):
-            for col in range(15):
-                tile_type = special_tiles.get((row, col), "")
-                if tile_type == "x2_cuv":
-                    bg_color = "pink"
-                    text = "x2C"
-                elif tile_type == "x3_litera":
-                    bg_color = "silver"
-                    text = "x3L"
-                elif tile_type == "x2_litera":
-                    bg_color = "lightblue"
-                    text = "x2L"
-                elif tile_type == "x3_cuv":
-                    bg_color = "#F08080"
-                    text = "x3C"
-                elif tile_type == "stea":
-                    bg_color = "silver"
-                    text = "★" 
-                elif tile_type != "":
-                    place_letter(row, col, tile_type)
-                    continue
-                else:
-                    bg_color = "white"
-                    text = " "
-                cell = tk.Button(
-                    board_frame, text=text, font=("Montserrat", 12), bg=bg_color, relief="ridge", width=cell_size, height=int(cell_size * 0.5),
-                    command=lambda r=row, c=col: on_cell_click(r, c)
-                )
-                cell.grid(row=row, column=col, sticky="nsew")
-                cells[row][col] = cell
-
-        for i in range(15):
-            board_frame.grid_rowconfigure(i, weight=1)
-            board_frame.grid_columnconfigure(i, weight=1)
+    
     place_special_tiles()
 
     text_frame = tk.Frame(root, bg="white", width=400, height=600)
@@ -313,7 +320,7 @@ def handle_client():
         justify="center",
         font=("Montserrat", 16, "bold"),
         anchor="center",
-        command=validate_word
+        # command=validate_word
     )
     done_label.place(x=0, y=230, width=400, height=50)
     switch_label = tk.Button(
