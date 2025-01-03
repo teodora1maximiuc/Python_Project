@@ -236,11 +236,13 @@ def validate_word():
     columns = [key[1] for key in current_word.keys()]
     words_to_check = []
     word = ""
-    sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
-    current_word = {key: current_word[key] for key in sorted_keys}
     if all(x == rows[0] for x in rows) or all(x == columns[0] for x in columns): 
-        if all(x == rows[0] for x in rows): # orizontal            
+        if all(x == rows[0] for x in rows) and valid == 1: # orizontal  
+            sorted_keys = sorted(current_word.keys(), key=lambda key: key[1])
+            current_word = {key: current_word[key] for key in sorted_keys}
             columns = [key[1] for key in current_word.keys()]
+            if turn == 1 and (rows[0] != 7 and all(x !=7 for x in columns)):
+                valid = 0 
             i = 0
             j = 0
             i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
@@ -278,8 +280,12 @@ def validate_word():
                 if not check_words_in_dict(words_to_check):
                     valid = 0
                 print(f"Total points: {word_points}")
-        elif all(x == columns[0] for x in columns): # vertical
+        elif all(x == columns[0] for x in columns) and valid == 1: # vertical
+            sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
+            current_word = {key: current_word[key] for key in sorted_keys}
             rows = [key[0] for key in current_word.keys()]
+            if turn == 1 and (columns[0] != 7 and all(x !=7 for x in rows)):
+                valid = 0 
             i = 0
             j = 0
             i, j = check_vertical_extension(rows[0], rows[len(rows)-1], columns[0])

@@ -126,7 +126,7 @@ def ready():
     ready_canvas.create_text(
         600 // 2, 140 // 2, text="You are ready", font=("Montserrat", 16), fill="black"
     )
-    ready_canvas.place(x=0, y=140, width=600, height=140)
+    ready_canvas.place(x=0, y=140, width=600, height=140) 
     ready_button.config(state=tk.DISABLED, text="You are ready")
     info_label.config(text="Waiting for others...")
     
@@ -146,7 +146,7 @@ def check_game_start():
             }
             player_letters = parsed_data['letters']
             temp_player_letters = player_letters.copy()
-            if parsed_data['message'] == "Game has started!":
+            if parsed_data['message'] != "":
                 info_label.config(text="Game has started!")
                 print("Game started")
                 game_started = True
@@ -158,7 +158,7 @@ def check_game_start():
 
 def handle_client():
     global board_frame
-    
+    menu.destroy()
     root = tk.Tk()
     root.title("Scrabble")
     root.geometry("1000x600")
@@ -313,6 +313,8 @@ def handle_client():
             )
             btn.grid(row=0, column=col, sticky="nsew")
     letter_frame_config(temp_player_letters)
+    def send_word():
+        i = 1
     done_label = tk.Button(
         text_frame,
         text="Done",
@@ -320,7 +322,7 @@ def handle_client():
         justify="center",
         font=("Montserrat", 16, "bold"),
         anchor="center",
-        # command=validate_word
+        command=send_word
     )
     done_label.place(x=0, y=230, width=400, height=50)
     switch_label = tk.Button(
