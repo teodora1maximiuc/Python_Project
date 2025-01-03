@@ -119,7 +119,6 @@ def on_cell_click(row, col):
 
 def ready():
     global game_started
-    client_socket.sendall(b"ready")
     ready_canvas = tk.Canvas(
         menu, width=600, height=140, bg="#a2d698", highlightthickness=0
     )
@@ -129,7 +128,7 @@ def ready():
     ready_canvas.place(x=0, y=140, width=600, height=140) 
     ready_button.config(state=tk.DISABLED, text="You are ready")
     info_label.config(text="Waiting for others...")
-    
+    client_socket.sendall(b"ready")
     check_game_start()
 
 def check_game_start():
@@ -155,6 +154,11 @@ def check_game_start():
         except (ConnectionResetError, ConnectionAbortedError) as e:
             info_label.config(text="Game already in progress.")
             break
+
+def send_word():
+    print (current_word)
+    current_word_str_key = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
+    client_socket.sendall(json.dumps(current_word_str_key).encode('utf-8'))
 
 def handle_client():
     global board_frame
@@ -205,6 +209,7 @@ def handle_client():
             i += 1
         label = tk.Label(popup, text=text, font=("Montserrat",12), justify="left", anchor="nw")
         label.pack(padx= 10, pady=10, fill="both", expand=False)
+
     button_label = tk.Button(
         text_frame,
         text="Informatii",
@@ -312,9 +317,8 @@ def handle_client():
                 command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
             )
             btn.grid(row=0, column=col, sticky="nsew")
+
     letter_frame_config(temp_player_letters)
-    def send_word():
-        i = 1
     done_label = tk.Button(
         text_frame,
         text="Done",
@@ -373,8 +377,6 @@ def handle_client():
     )
     undo_label.place(x=0, y=330, width=400, height=50)
     root.mainloop()
-
-    
 
 menu = tk.Tk()
 menu.title("Scrabble")

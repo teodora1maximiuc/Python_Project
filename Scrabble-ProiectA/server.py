@@ -345,7 +345,8 @@ def handle_player_game():
                         'letters': players_letters[player_id_num]
                     }
                     client_socket.sendall(json.dumps(data).encode('utf-8'))
-                    # current_word = client_socket.recv(1600).decode('utf-8')
+                    current_word = client_socket.recv(1600).decode('utf-8')
+                    print(current_word)
                     # validate_word(players_letters[player_id_num], current_word)
                     turn = (turn + 1) % len(clients)
                 else:
@@ -393,7 +394,7 @@ def handle_client_ready(client_socket):
                     handle_player_game()
 
         except (ConnectionResetError, BrokenPipeError):
-            print("A player disconnected while waiting for readiness.")
+            print("Player disconnected, readinees.")
             break
 
 player_id = {}
