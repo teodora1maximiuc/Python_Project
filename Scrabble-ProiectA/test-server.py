@@ -101,8 +101,10 @@ special_tiles = {
     # (8, 7): "S",
     # (9, 7): "A",
 }
+special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
 
 clients = []
+players_letters = []
 turns = []
 ready_count = 0
 total_clients = 0
@@ -113,18 +115,31 @@ def handle_client(client_socket, addr):
     print(f"New player: {addr}")
     client_socket.send("Wait for ready..".encode())
     
-    ready = client_socket.recv(1024).decode().strip().lower()
+    ready = client_socket.recv(1600).decode().strip().lower()
     if ready == "ready":
         with lock:
             ready_count += 1
             clients.append(client_socket)
             turns.append(addr)
+            player_letters = []
+            while len(player_letters) < 7:
+                if all(letter_counts[x] == 0 for x in alphabet):
+                    break
+                random_letter = random.choice(alphabet)
+                if letter_counts[random_letter] != 0:
+                    player_letters.append(random_letter)
+                    letter_counts[random_letter] -= 1
+            players_letters.append(player_letters)
         print(f"Client {addr} ready. Total: {ready_count}/{total_clients}")
 
         if ready_count == total_clients:
             print(f"All ready! Starting the game...")
-            for c in clients:
-                c.send("All ready! Starting the game...".encode())
+            for c in range(0, ready_count):
+                data = {
+                    'special_tiles': special_tiles_str_keys,
+                    'letters': players_letters[c],
+                }
+                clients[c].sendall(json.dumps(data).encode('utf-8'))
             start_game()
 
 def start_game():
@@ -133,8 +148,12 @@ def start_game():
         current_client = clients[current_turn]
         current_addr = turns[current_turn]
         
-        current_client.send("It's your turn!".encode())
-        message = current_client.recv(1024).decode()
+        for c in clients:
+            if c != current_client:
+                c.send(f"\nPlayer {current_turn + 1}'s turn!".encode())
+            else:
+                c.send("\nIt's your turn!".encode())
+        message = current_client.recv(1600).decode()
         
         print(f"Message from {current_addr}: {message}")
         for c in clients:
