@@ -110,6 +110,12 @@ ready_count = 0
 total_clients = 0
 lock = threading.Lock()
 
+def bag_count():
+    count = 0
+    for x in letter_counts.keys:
+        count += letter_counts[x]
+    return count
+
 def handle_client(client_socket, addr):
     global ready_count, total_clients
     print(f"New player: {addr}")
@@ -150,14 +156,53 @@ def start_game():
         
         for c in clients:
             if c != current_client:
-                c.send(f"\nPlayer {current_turn + 1}'s turn!".encode())
+                data_to_send = {
+                    "reason": f"Player {current_turn + 1}'s turn!"
+                }
+                c.send(json.dumps(data_to_send).encode('utf-8'))
             else:
-                c.send("\nIt's your turn!".encode())
+                data_to_send = {
+                    "reason": "It's your turn!"
+                }
+                c.send(json.dumps(data_to_send).encode('utf-8'))
         message = current_client.recv(1600).decode()
-        
-        print(f"Message from {current_addr}: {message}")
-        for c in clients:
-            c.send(f"Message from {current_addr}: {message}".encode())
+        parsed_message = json.loads(message)
+        if "switch" in parsed_message['reason']:
+            _, data = parsed_message['reason'].split(" ", 1)
+            current_letter, current_letter_col = data.split(",")
+            current_letter = current_letter.strip()
+            current_letter_col = int(current_letter_col.strip())
+            print(f"Current Letter: {current_letter}, Column: {current_letter_col}")
+            if not all(letter_counts[x] == 0 for x in alphabet):
+                random_letter = random.choice(alphabet)
+                while letter_counts[random_letter] == 0:
+                    random_letter = random.choice(alphabet)
+                letter_counts[current_letter] +=1
+                letter_counts[random_letter] -=1
+                players_letters[current_turn][current_letter_col] = random_letter
+                print(random_letter)
+                data_to_send = {
+                    "reason": random_letter
+                }
+                current_client.send(json.dumps(data_to_send).encode('utf-8'))
+            else:
+                data_to_send = {
+                    "reason": "empty bag",
+                }
+                current_client.send(json.dumps(data_to_send).encode('utf-8'))
+        elif "done" in parsed_message['reason']:
+            current_word = {
+                tuple(map(int, key.split(','))): value
+                for key, value in parsed_message['current_word'].items()
+            }
+            print(current_word)
+        else:
+            print(f"Message from {current_addr}: {parsed_message}")
+            for c in clients:
+                data_to_send = {
+                    "reason": f"Message from {current_addr}: {parsed_message}"
+                }
+                c.send(json.dumps(data_to_send).encode('utf-8'))
         
         current_turn = (current_turn + 1) % total_clients
 

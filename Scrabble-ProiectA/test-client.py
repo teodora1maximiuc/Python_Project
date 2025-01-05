@@ -30,13 +30,19 @@ special_tiles = {}
 player_letters = []
 temp_player_letters = []
 current_letter = ""
+current_letter_col = 0
 current_word = {}
 turn = False
 client_socket = ""
-done = False
+score = 0
 def done():
-    global done
-    done = True
+    current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
+    data = {
+        'reason' : "done",
+        'current_word' : current_word_str_keys,
+        'letters' : temp_player_letters,
+    }
+    client_socket.send(json.dumps(data).encode())
 
 ready = False
 def ready():
@@ -150,10 +156,11 @@ def place_special_tiles():
         board_frame.grid_columnconfigure(i, weight=1)
 
 def on_letter_frame_click(c, color):
-    global current_letter, prev_letter_col, temp_player_letters, turn
+    global current_letter, prev_letter_col, temp_player_letters, turn, current_letter_col
     if turn == True:
         if current_letter == "":
             current_letter = temp_player_letters[c]
+            current_letter_col = c
             temp_player_letters[c] = ""
             for col in range(7):
                 letter = temp_player_letters[col]
@@ -235,7 +242,15 @@ def letter_frame_config (temp_player_letters):
             command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
         )
         btn.grid(row=0, column=col, sticky="nsew")
-
+def switch_letter():
+    global current_letter, turn, player_letters, current_letter_col
+    print(current_letter)
+    if turn == True and current_letter!="":
+        data_to_send = {
+            "reason": f"switch {current_letter}, {current_letter_col}"
+        }
+        client_socket.send(json.dumps(data_to_send).encode('utf-8'))
+        current_letter = ""
 def undo():
     global temp_player_letters, player_letters, current_word
     current_word.clear()
@@ -356,7 +371,7 @@ def show_board():
         justify="center",
         font=("Montserrat", 16, "bold"),
         anchor="center",
-        command=show_info_popup
+        command=switch_letter
     )
     switch_label.place(x=0, y=280, width=400, height=50)
 
@@ -392,7 +407,7 @@ def show_board():
     root.mainloop()
 
 def client():
-    global ready, temp_player_letters, special_tiles, turn, turn_label, client_socket
+    global ready, temp_player_letters, special_tiles, turn, turn_label, client_socket, player_letters
     ready = False
     host = "127.0.0.1"
     port = 5555
@@ -418,25 +433,22 @@ def client():
         print (player_letters)
         show_board()
 def game_rounds():
-    global ready, temp_player_letters, special_tiles, turn, turn_label, done
+    global ready, temp_player_letters, special_tiles, turn, turn_label, player_letters, current_letter
     while True:
         data = client_socket.recv(1600).decode()
-        print(data)
+        parsed_data=json.loads(data)
+        print(parsed_data['reason'])
         
-        if "It's your turn!" in data:
+        if parsed_data['reason'] == "It's your turn!":
             turn = True
             turn_label.config(text="It's your turn!")
-            done = False
-            while done == False:
-                continue
-            done = False
-            current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
-            data = {
-                'current_word' : current_word_str_keys,
-                'letters' : player_letters,
-            }
-            client_socket.send(json.dumps(data).encode())
-        elif "Player" in data:
-            turn_label.config(text=data)
+        elif "Player" in parsed_data['reason']:
+            turn_label.config(text=parsed_data['reason'])
+        elif parsed_data['reason'].isupper():
+            temp_player_letters[current_letter_col] = parsed_data['reason']
+            player_letters = temp_player_letters.copy()
+            letter_frame_config(temp_player_letters)
+            current_letter = ""
+            turn = False
 threading.Thread(target=client, daemon=True).start()
 menu.mainloop()
