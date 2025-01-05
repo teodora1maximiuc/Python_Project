@@ -94,18 +94,17 @@ info_label = tk.Label(
 info_label.place(x=0, y=280, width=600, height=120)
 def place_letter(row, col, letter):
     global board_frame, turn
-    if turn == True:
-        points = letter_points[letter]
-        canvas = tk.Canvas(
-            board_frame, width=40, height=40, bg="#dec5b6", highlightthickness=0
-        )
-        canvas.grid(row=row, column=col, sticky="nsew")
-        canvas.create_text(
-            40 // 2, 40 // 2, text=letter, font=("Montserrat", 16), fill="black"
-        )
-        canvas.create_text(
-            40 - 5, 40 - 5, text=str(points), font=("Montserrat", 8), fill="black", anchor="se"
-        )
+    points = letter_points[letter]
+    canvas = tk.Canvas(
+        board_frame, width=40, height=40, bg="#dec5b6", highlightthickness=0
+    )
+    canvas.grid(row=row, column=col, sticky="nsew")
+    canvas.create_text(
+        40 // 2, 40 // 2, text=letter, font=("Montserrat", 16), fill="black"
+    )
+    canvas.create_text(
+        40 - 5, 40 - 5, text=str(points), font=("Montserrat", 8), fill="black", anchor="se"
+    )
 """SCRABBLE GAME - ELEMENTE"""
             # vvvv
 def on_cell_click(row, col):
@@ -139,6 +138,7 @@ def place_special_tiles():
                 bg_color = "silver"
                 text = "★" 
             elif tile_type != "":
+                print(tile_type)
                 place_letter(row, col, tile_type)
                 continue
             else:
@@ -150,6 +150,7 @@ def place_special_tiles():
             )
             cell.grid(row=row, column=col, sticky="nsew")
             cells[row][col] = cell
+    root.update_idletasks()
 
     for i in range(15):
         board_frame.grid_rowconfigure(i, weight=1)
@@ -281,7 +282,7 @@ def undo():
 """SCRABBLE GAME - ELEMENTE"""
 def show_board():
     # print("am intrat in show_board")
-    global root, board_frame, letter_frame, turn_label
+    global root, board_frame, letter_frame, turn_label, score_label
     root = tk.Tk()
     root.title("Scrabble")
     root.geometry("1000x600")
@@ -396,7 +397,7 @@ def show_board():
     turn_label.place(x=0, y=400, width=400, height=50)
     score_label = tk.Label(
         text_frame,
-        text="Score: 0",
+        text=f"Score: {score}",
         bg="white",
         justify="center",
         font=("Montserrat", 16, "bold"),
@@ -414,13 +415,13 @@ def client():
     
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((host, port))
-    print(client_socket.recv(1600).decode())
+    print(client_socket.recv(1800).decode())
     
     while ready == False:
         continue
     print("Ready")
     client_socket.send("ready".encode())
-    data = client_socket.recv(1600).decode()
+    data = client_socket.recv(1800).decode()
     if "special_tiles" in data and "letters" in data:
         parsed_data = json.loads(data)
         special_tiles = {
@@ -433,9 +434,9 @@ def client():
         print (player_letters)
         show_board()
 def game_rounds():
-    global ready, temp_player_letters, special_tiles, turn, turn_label, player_letters, current_letter
+    global ready, temp_player_letters, special_tiles, turn, turn_label, player_letters, current_letter, score, score_label
     while True:
-        data = client_socket.recv(1600).decode()
+        data = client_socket.recv(1800).decode()
         parsed_data=json.loads(data)
         print(parsed_data['reason'])
         
@@ -450,5 +451,24 @@ def game_rounds():
             letter_frame_config(temp_player_letters)
             current_letter = ""
             turn = False
+        elif parsed_data['reason'] == "check":
+            print(parsed_data['status'])
+            player_letters = parsed_data['letters'].copy()
+            temp_player_letters = parsed_data['letters'].copy()
+            score += int(parsed_data['score'])
+            score_label.config(text=f"Score: {parsed_data['score']}")
+            special_tiles = {
+                tuple(map(int, key.split(','))): value
+                for key, value in parsed_data['special_tiles'].items()
+            }
+            place_special_tiles()
+            letter_frame_config(temp_player_letters)
+        elif parsed_data['reason'] == "update":
+            special_tiles = {
+                tuple(map(int, key.split(','))): value
+                for key, value in parsed_data['special_tiles'].items()
+            }
+            print(special_tiles)
+            place_special_tiles()
 threading.Thread(target=client, daemon=True).start()
 menu.mainloop()

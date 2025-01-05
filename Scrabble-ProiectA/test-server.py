@@ -101,14 +101,225 @@ special_tiles = {
     # (8, 7): "S",
     # (9, 7): "A",
 }
-special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
+
 
 clients = []
 players_letters = []
 turns = []
+scores = []
+turn = 0
 ready_count = 0
 total_clients = 0
 lock = threading.Lock()
+
+def is_word_in_dict(word):
+    file_path = r"C:\\Users\\Raluci\\OneDrive\\Desktop\\python\\Maximiuc_Teodora_3B2\\Scrabble-ProiectA\\ro_RO.dic"
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.strip() == word:
+                return True
+    return False
+
+def check_words_in_dict(words):
+    for word in words:
+        if word not in valid_2_letter_words and not is_word_in_dict(word):
+            print(word)
+            return False
+    return True
+
+def check_orizontal_extension(row, startCol, endCol):
+    i = 0
+    j = 0
+    while special_tiles.get((row, startCol - i - 1), "").isupper():
+        i += 1
+    while special_tiles.get((row, endCol + j + 1), "").isupper():
+        j += 1
+    return i, j
+
+def check_vertical_extension(startRow, endRow, col):
+    i = 0
+    j = 0
+    while special_tiles.get((startRow - i - 1, col), "").isupper():
+        i += 1
+    while special_tiles.get((endRow + j + 1, col), "").isupper():
+        j += 1
+    return i, j
+
+def apply_bonus(row, col, current_word):
+    global special_tiles
+    tile_type = special_tiles.get((row, col), "")
+    word_points = 0
+    to_multiply = 1
+    if tile_type == "" or tile_type == "stea":
+        word_points = letter_points[current_word[(row, col)]]
+    elif tile_type == "x2_cuv":
+        to_multiply = 2
+    elif tile_type == "x3_litera":
+        word_points = letter_points[current_word[(row, col)]] * 3
+    elif tile_type == "x2_litera":
+        word_points = letter_points[current_word[(row, col)]] * 2
+    elif tile_type == "x3_cuv":
+        to_multiply = 3
+    return word_points, to_multiply
+
+def get_orizontal_word(i, j, row, col, current_word):
+    word_points = 0
+    to_multiply = 1
+    word = ""
+    pos = col - i
+    while pos != col + j + 1:
+        if special_tiles.get((row, pos), "").isupper():
+            word += special_tiles[(row, pos)]
+            add = letter_points[special_tiles[((row, pos))]]
+        elif (row, pos) in current_word: 
+            word += current_word[(row, pos)]
+            add, mul = apply_bonus(row, pos)
+            word_points += add
+            to_multiply *= mul
+        pos += 1
+    word_points *= to_multiply
+    return word, word_points
+
+def get_vertical_word(i, j, row, col, current_word):
+    word_points = 0
+    to_multiply = 1
+    word = ""
+    pos = row - i
+    while pos != row + j + 1:
+        if special_tiles.get((pos, col), "").isupper():
+            word += special_tiles[((pos, col))]
+            add = letter_points[special_tiles[((pos, col))]]
+        elif (pos, col) in current_word:
+            word += current_word[(pos, col)]
+            add, mul = apply_bonus(pos, col)
+            word_points += add
+            to_multiply *= mul
+        pos += 1
+    word_points *= to_multiply
+    return word, word_points
+
+def validate_word(current_word, player_letters):
+    global turn, special_tiles
+    valid = 1
+    rows = [key[0] for key in current_word.keys()]
+    columns = [key[1] for key in current_word.keys()]
+    words_to_check = []
+    word = ""
+    word_points = 0
+    if all(x == rows[0] for x in rows) or all(x == columns[0] for x in columns): 
+        if all(x == rows[0] for x in rows) and valid == 1: # orizontal  
+            sorted_keys = sorted(current_word.keys(), key=lambda key: key[1])
+            current_word = {key: current_word[key] for key in sorted_keys}
+            columns = [key[1] for key in current_word.keys()]
+            if turn == 1 and (rows[0] != 7 or all(x !=7 for x in columns)):
+                valid = 0 
+            i = 0
+            j = 0
+            i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
+            print(f"{i} {j}")
+            pos = columns[0] - i
+            word_points = 0
+            to_multiply = 1
+            while pos != columns[len(columns)-1] + j + 1:
+                if special_tiles.get((rows[0],pos), "").isupper():
+                    word += special_tiles[(rows[0], pos)]
+                    word_points += letter_points[special_tiles[(rows[0], pos)]]
+                elif (rows[0], pos) in current_word: 
+                    word += current_word[(rows[0], pos)]
+                    add, mul = apply_bonus(rows[0], pos, current_word)
+                    word_points += add
+                    # print(f"add = {add}")
+                    to_multiply *= mul
+                else: # nu sunt consecutive
+                    valid = 0
+                    break
+                pos += 1
+            if valid != 0:
+                print(f"{word_points} x {to_multiply}")
+                word_points *= to_multiply
+                words_to_check.append(word)
+                for column in columns:
+                    i, j = check_vertical_extension(rows[0], rows[0], column)
+                    if i!=0 or j!=0 :
+                        word, add = get_vertical_word(i, j, rows[0], column, current_word)
+                        # print(f"add = {add}")
+                        words_to_check.append(word)
+                        word_points += add
+                if len(current_word) == 1 and len(words_to_check) != 1:
+                    words_to_check = words_to_check[1:]
+                print(words_to_check)
+                if not check_words_in_dict(words_to_check):
+                    valid = 0
+                print(f"Total points: {word_points}")
+        elif all(x == columns[0] for x in columns) and valid == 1: # vertical
+            sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
+            current_word = {key: current_word[key] for key in sorted_keys}
+            rows = [key[0] for key in current_word.keys()]
+            if turn == 1 and (columns[0] != 7 and all(x !=7 for x in rows)):
+                valid = 0 
+            i = 0
+            j = 0
+            i, j = check_vertical_extension(rows[0], rows[len(rows)-1], columns[0])
+            print(f"{i} si {j}")
+            pos = rows[0] - i
+            word_points = 0
+            to_multiply = 1
+            while pos != rows[len(rows)-1] + j + 1:
+                if special_tiles.get((pos, columns[0]), "").isupper():
+                    word += special_tiles[((pos, columns[0]))]
+                    word_points += letter_points[special_tiles[((pos, columns[0]))]]
+                elif (pos, columns[0]) in current_word:
+                    word += current_word[(pos, columns[0])]
+                    add, mul = apply_bonus(pos, columns[0], current_word)
+                    # print(f"add = {add}")
+                    word_points += add
+                    to_multiply *= mul
+                else: # nu sunt consecutive
+                    valid = 0
+                    break
+                pos += 1
+            if valid != 0:
+                word_points *= to_multiply
+                words_to_check.append(word)
+                for row in rows:
+                    i, j = check_orizontal_extension(row, columns[0], columns[0])
+                    if i!=0 or j!=0 :
+                        word, add = get_orizontal_word(i, j, row, columns[0], current_word)
+                        print(f"add = {add}")
+                        words_to_check.append(word)
+                        word_points += add
+                if len(current_word) == 1 and len(words_to_check) != 1:
+                    words_to_check = words_to_check[1:]
+                print(words_to_check)
+                if not check_words_in_dict(words_to_check):
+                    valid = 0
+                print(f"Total points: {word_points}")
+        else: valid = 0
+    else: valid = 0
+    if valid == 1:
+        print("Valid word!")
+        print(player_letters)
+        i = 0
+        for letter in player_letters:
+            if letter == '': 
+                if all(letter_counted == 0 for letter_counted in letter_counts):
+                    print("No more letters")
+                else:
+                    random_letter = random.choice(alphabet)
+                    while letter_counts[random_letter] == 0:
+                        random_letter = random.choice(alphabet)
+                    player_letters[i] = random_letter
+                    
+                    letter_counts[random_letter] -= 1
+            i += 1
+        for key, item in current_word.items():
+            special_tiles[key] = item
+        print (player_letters)
+        print(f"score: {word_points}")
+        return player_letters, word_points
+    elif valid == 0:
+        print("Invalid word!")
+        return [], 0
 
 def bag_count():
     count = 0
@@ -117,16 +328,17 @@ def bag_count():
     return count
 
 def handle_client(client_socket, addr):
-    global ready_count, total_clients
+    global ready_count, total_clients, special_tiles
     print(f"New player: {addr}")
     client_socket.send("Wait for ready..".encode())
     
-    ready = client_socket.recv(1600).decode().strip().lower()
+    ready = client_socket.recv(1800).decode().strip().lower()
     if ready == "ready":
         with lock:
             ready_count += 1
             clients.append(client_socket)
             turns.append(addr)
+            scores.append(0)
             player_letters = []
             while len(player_letters) < 7:
                 if all(letter_counts[x] == 0 for x in alphabet):
@@ -140,6 +352,7 @@ def handle_client(client_socket, addr):
 
         if ready_count == total_clients:
             print(f"All ready! Starting the game...")
+            special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
             for c in range(0, ready_count):
                 data = {
                     'special_tiles': special_tiles_str_keys,
@@ -149,10 +362,13 @@ def handle_client(client_socket, addr):
             start_game()
 
 def start_game():
+    global turn, special_tiles
     current_turn = 0
     while True:
+        turn += 1
         current_client = clients[current_turn]
         current_addr = turns[current_turn]
+        print(current_turn)
         
         for c in clients:
             if c != current_client:
@@ -165,7 +381,7 @@ def start_game():
                     "reason": "It's your turn!"
                 }
                 c.send(json.dumps(data_to_send).encode('utf-8'))
-        message = current_client.recv(1600).decode()
+        message = current_client.recv(1800).decode()
         parsed_message = json.loads(message)
         if "switch" in parsed_message['reason']:
             _, data = parsed_message['reason'].split(" ", 1)
@@ -195,15 +411,47 @@ def start_game():
                 tuple(map(int, key.split(','))): value
                 for key, value in parsed_message['current_word'].items()
             }
-            print(current_word)
-        else:
-            print(f"Message from {current_addr}: {parsed_message}")
-            for c in clients:
+            score = 0
+            letters, score = validate_word(current_word, parsed_message['letters'])
+            if score == 0:
                 data_to_send = {
-                    "reason": f"Message from {current_addr}: {parsed_message}"
+                    "reason": "check",
+                    "status": "invalid"
                 }
                 c.send(json.dumps(data_to_send).encode('utf-8'))
-        
+                current_turn -= 1
+            else:
+                players_letters[current_turn] = letters.copy()
+                scores[current_turn] += score
+                special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
+                data_to_send = {
+                    "reason": "check",
+                    "status": "valid",
+                    "letters": letters,
+                    "score": score,
+                    "special_tiles": special_tiles_str_keys
+                }
+                c.send(json.dumps(data_to_send).encode('utf-8'))
+            for c in clients:
+                if c != current_client:
+                    special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
+                    data_to_send = {
+                        "reason": "update",
+                        "special_tiles": special_tiles_str_keys
+                    }
+                    print (c)
+                    c.send(json.dumps(data_to_send).encode('utf-8'))
+        else:
+            print(f"Message from {current_addr}: {parsed_message}")
+            # for c in clients:
+            #     if c != current_client:
+            #         special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
+            #         data_to_send = {
+            #             "reason": "update",
+            #             "special_tiles": special_tiles_str_keys
+            #         }
+            #         print (c)
+            #         c.send(json.dumps(data_to_send).encode('utf-8'))
         current_turn = (current_turn + 1) % total_clients
 
 def server():
