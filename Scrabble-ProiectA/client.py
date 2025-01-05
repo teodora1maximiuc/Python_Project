@@ -2,49 +2,28 @@ import socket
 import tkinter as tk
 import threading
 import json
-alphabet = ['A', 'B', 'C', 'D',
-    'E', 'F', 'G', 'H', 
-    'I', 'J', 'L', 'M', 
-    'N', 'O', 'P', 'R',
-    'S', 'T', 'U', 'V', 'X', 'Z']
+alphabet = ['A', 'B', 'C', 'D','E', 'F', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'X', 'Z']
 letter_points = {
-    'A': 1, 'B': 5, 'C': 3, 'D': 3,
-    'E': 1, 'F': 4, 'G': 6, 'H': 8, 
-    'I': 1, 'J': 8, 'L': 2, 'M': 4, 
-    'N': 2, 'O': 2, 'P': 2, 'R': 1, 
-    'S': 1, 'T': 1, 'U': 1, 'V': 4,
-    'X': 10, 'Z': 8
+    'A': 1, 'B': 5, 'C': 3, 'D': 3, 'E': 1, 'F': 4, 'G': 6, 'H': 8, 
+    'I': 1, 'J': 8, 'L': 2, 'M': 4, 'N': 2, 'O': 2, 'P': 2, 'R': 1, 
+    'S': 1, 'T': 1, 'U': 1, 'V': 4, 'X': 10, 'Z': 8
 }
 letter_counts = {
-    'A': 10, 'B': 2, 'C': 5, 'D': 4,
-    'E': 9, 'F': 2, 'G': 2, 'H': 2, 
-    'I': 11, 'J': 1, 'L': 5, 'M': 3, 
-    'N': 6, 'O': 6, 'P': 4, 'R': 6, 
-    'S': 6, 'T': 7, 'U': 5, 'V': 2,
-    'X': 1, 'Z': 1
+    'A': 10, 'B': 2, 'C': 5, 'D': 4, 'E': 9, 'F': 2, 'G': 2, 'H': 2, 
+    'I': 11, 'J': 1, 'L': 5, 'M': 3, 'N': 6, 'O': 6, 'P': 4, 'R': 6, 
+    'S': 6, 'T': 7, 'U': 5, 'V': 2, 'X': 1, 'Z': 1
 }
 valid_2_letter_words = [
     "AA", "AB", "AC", "AD", "AH", "AI", "AL", "AM", "AN", "AR", "AS", "AT", "AU", "AX", "AZ",
-    "BA", "BI", "BU",
-    "CA", "CE", "CI", "CO", "CU",
-    "DA", "DE", "DI", "DO", "DU",
+    "BA", "BI", "BU", "CA", "CE", "CI", "CO", "CU", "DA", "DE", "DI", "DO", "DU",
     "EA", "EC", "EE", "EH", "EI", "EL", "EN", "ET", "EU", "EV", "EX",
-    "FA", "FI", "FU",
-    "GA", "GO",
-    "HA", "HE", "HI", "HM", "HO", "HU",
+    "FA", "FI", "FU", "GA", "GO", "HA", "HE", "HI", "HM", "HO", "HU",
     "IA", "IC", "IE", "II", "IL", "IM", "IN", "IO", "IR", "IS", "IT", "IU", "IZ",
-    "LA", "LE", "LI",
-    "MA", "MI", "MU",
-    "NA", "NE", "NI", "NO", "NU",
+    "LA", "LE", "LI", "MA", "MI", "MU", "NA", "NE", "NI", "NO", "NU",
     "OA", "OF", "OH", "OI", "OL", "OM", "ON", "OP", "OR", "OS", "OT", "OU",
-    "PA", "PE", "PI", "PU",
-    "RA", "RE", "RO",
-    "SA", "SE", "SI", "SO", "SS", "ST", "SU",
-    "TA", "TE", "TI", "TT", "TU",
-    "UD", "UF", "UI", "UN", "US", "UT", "UU", "UZ",
-    "VA", "VI", "VU",
-    "XU",
-    "ZA", "ZI"
+    "PA", "PE", "PI", "PU", "RA", "RE", "RO", "SA", "SE", "SI", "SO", "SS", "ST", "SU",
+    "TA", "TE", "TI", "TT", "TU", "UD", "UF", "UI", "UN", "US", "UT", "UU", "UZ",
+    "VA", "VI", "VU", "XU", "ZA", "ZI"
 ]
 special_tiles = {}
 player_letters = []
@@ -86,7 +65,6 @@ def ready():
     ready_button.config(state=tk.DISABLED, text="You are ready")
     info_label.config(text="Waiting for others...")
     client_socket.sendall(b"ready")
-    menu.destroy()
     check_game_start()
 
 def check_game_start():
@@ -277,6 +255,8 @@ def send_word():
     current_word_str_key = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
     client_socket.sendall(json.dumps(current_word_str_key).encode('utf-8'))
     answer = client_socket.recv(1600).decode('utf-8')
+    while answer != "":
+        answer = client_socket.recv(1600).decode('utf-8')
     if answer == "correct":
         print("My turn is done!!!!")
     elif answer == "invalid":
@@ -285,6 +265,8 @@ def send_word():
 
 def handle_client():
     global root, board_frame, text_frame, letter_frame
+    menu.destroy()
+
     root = tk.Tk()
     root.title("Scrabble")
     root.geometry("1000x600")

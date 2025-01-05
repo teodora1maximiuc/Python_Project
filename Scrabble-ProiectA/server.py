@@ -335,47 +335,54 @@ def validate_word(player_id, player_letters, current_word):
 
 turn_lock = threading.Lock()
 
-def handle_player_game():
+def handle_player_game(client_socket):
     global turn
+    player_id_num = player_id[client_socket]
+
     while game_started:
-        for client_socket in clients:
-            player_id_num = player_id[client_socket]
-            with turn_lock:
-                if turn == player_id_num:
-                    data = {
-                        'message': 'Your turn', 
-                        'special_tiles': special_tiles_str_keys,
-                        'letters': players_letters[player_id_num]
-                    }
-                    client_socket.sendall(json.dumps(data).encode('utf-8'))
+        with turn_lock:
+            if turn != player_id_num:
+                data = {
+                    'message': f"{turn + 1}'s turn",
+                    'special_tiles': special_tiles_str_keys,
+                    'letters': players_letters[player_id_num],
+                }
+                client_socket.sendall(json.dumps(data).encode('utf-8'))
+                continue
+
+            data = {
+                'message': 'Your turn',
+                'special_tiles': special_tiles_str_keys,
+                'letters': players_letters[player_id_num],
+            }
+            client_socket.sendall(json.dumps(data).encode('utf-8'))
+
+            try:
+                answer = client_socket.recv(1600).decode('utf-8')
+                current_word_str_key = json.loads(answer)
+                current_word = {
+                    tuple(map(int, key.split(','))): value
+                    for key, value in current_word_str_key.items()
+                }
+                print(current_word)
+
+                while validate_word(player_id_num, players_letters[player_id_num], current_word) == 0:
+                    client_socket.sendall(json.dumps({'message': 'invalid'}).encode('utf-8'))
                     answer = client_socket.recv(1600).decode('utf-8')
                     current_word_str_key = json.loads(answer)
-                    print(current_word_str_key)
                     current_word = {
                         tuple(map(int, key.split(','))): value
                         for key, value in current_word_str_key.items()
                     }
-                    print(current_word)
-                    while validate_word(player_id_num, players_letters[player_id_num], current_word) == 0:
-                        client_socket.sendall("invalid".encode('utf-8'))
-                        answer = client_socket.recv(1600).decode('utf-8')
-                        current_word_str_key = json.loads(answer)
-                        print(current_word_str_key)
-                        current_word = {
-                            tuple(map(int, key.split(','))): value
-                            for key, value in current_word_str_key.items()
-                        }
-                    if validate_word(player_id_num, players_letters[player_id_num], current_word) == 1:
-                        client_socket.sendall("corect".encode('utf-8'))
-                    turn = (turn + 1) % len(clients)
-                else:
-                    data = {
-                        'message': f"{turn + 1}'s turn",
-                        'special_tiles': special_tiles_str_keys,
-                        'letters': players_letters[player_id_num]
-                    }
-                    client_socket.sendall(json.dumps(data).encode('utf-8'))
-        time.sleep(1)
+
+                if validate_word(player_id_num, players_letters[player_id_num], current_word) == 1:
+                    client_socket.sendall(json.dumps({'message': 'correct'}).encode('utf-8'))
+
+                turn = (turn + 1) % len(clients)
+
+            except Exception as e:
+                print(f"Error processing player {player_id_num}'s move: {e}")
+
 
 def accept_clients():
     global game_started, ready_count, player_id
@@ -388,6 +395,7 @@ def accept_clients():
         threading.Thread(target=handle_client_ready, args=(client_socket,)).start()
 
 def handle_client_ready(client_socket):
+    print("hi")
     global game_started, ready_count, player_id
     while not game_started:
         try:
@@ -410,7 +418,7 @@ def handle_client_ready(client_socket):
                                 letter_counts[random_letter] -= 1
                         players_letters[player_id[client]] = player_letters
 
-                    handle_player_game()
+                    handle_player_game(client_socket)
 
         except (ConnectionResetError, BrokenPipeError):
             print("Player disconnected, readinees.")
