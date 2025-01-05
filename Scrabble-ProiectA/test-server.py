@@ -173,7 +173,7 @@ def get_orizontal_word(i, j, row, col, current_word):
             add = letter_points[special_tiles[((row, pos))]]
         elif (row, pos) in current_word: 
             word += current_word[(row, pos)]
-            add, mul = apply_bonus(row, pos)
+            add, mul = apply_bonus(row, pos, current_word)
             word_points += add
             to_multiply *= mul
         pos += 1
@@ -191,7 +191,7 @@ def get_vertical_word(i, j, row, col, current_word):
             add = letter_points[special_tiles[((pos, col))]]
         elif (pos, col) in current_word:
             word += current_word[(pos, col)]
-            add, mul = apply_bonus(pos, col)
+            add, mul = apply_bonus(pos, col, current_word)
             word_points += add
             to_multiply *= mul
         pos += 1
@@ -365,23 +365,26 @@ def start_game():
     global turn, special_tiles
     current_turn = 0
     while True:
-        turn += 1
-        current_client = clients[current_turn]
-        current_addr = turns[current_turn]
-        print(current_turn)
-        
+        with game_lock:
+            turn += 1
+            current_client = clients[current_turn]
+            current_addr = turns[current_turn]
+            print(current_turn)
+        time.sleep(0.1)
         for c in clients:
-            if c != current_client:
-                data_to_send = {
-                    "reason": f"Player {current_turn + 1}'s turn!"
-                }
-                c.send(json.dumps(data_to_send).encode('utf-8'))
-            else:
-                data_to_send = {
-                    "reason": "It's your turn!"
-                }
-                c.send(json.dumps(data_to_send).encode('utf-8'))
+            with game_lock:
+                if c != current_client:
+                    data_to_send = {
+                        "reason": f"Player {current_turn + 1}'s turn!"
+                    }
+                    c.send(json.dumps(data_to_send).encode('utf-8'))
+                else:
+                    data_to_send = {
+                        "reason": "It's your turn!"
+                    }
+                    c.send(json.dumps(data_to_send).encode('utf-8'))
         message = current_client.recv(1800).decode()
+        print(f"am primit :{message}")
         parsed_message = json.loads(message)
         if "switch" in parsed_message['reason']:
             _, data = parsed_message['reason'].split(" ", 1)
@@ -418,7 +421,7 @@ def start_game():
                     "reason": "check",
                     "status": "invalid"
                 }
-                c.send(json.dumps(data_to_send).encode('utf-8'))
+                current_client.send(json.dumps(data_to_send).encode('utf-8'))
                 current_turn -= 1
             else:
                 players_letters[current_turn] = letters.copy()
@@ -431,7 +434,7 @@ def start_game():
                     "score": score,
                     "special_tiles": special_tiles_str_keys
                 }
-                c.send(json.dumps(data_to_send).encode('utf-8'))
+                current_client.send(json.dumps(data_to_send).encode('utf-8'))
             for c in clients:
                 if c != current_client:
                     special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
@@ -467,5 +470,5 @@ def server():
         client_socket, addr = server_socket.accept()
         total_clients += 1
         threading.Thread(target=handle_client, args=(client_socket, addr)).start()
-
+game_lock = threading.Lock()
 server()

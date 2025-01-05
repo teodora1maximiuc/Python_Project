@@ -36,6 +36,7 @@ turn = False
 client_socket = ""
 score = 0
 def done():
+    global current_word
     current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
     data = {
         'reason' : "done",
@@ -43,6 +44,7 @@ def done():
         'letters' : temp_player_letters,
     }
     client_socket.send(json.dumps(data).encode())
+    current_word.clear()
 
 ready = False
 def ready():
@@ -138,7 +140,6 @@ def place_special_tiles():
                 bg_color = "silver"
                 text = "★" 
             elif tile_type != "":
-                print(tile_type)
                 place_letter(row, col, tile_type)
                 continue
             else:
@@ -437,13 +438,20 @@ def game_rounds():
     global ready, temp_player_letters, special_tiles, turn, turn_label, player_letters, current_letter, score, score_label
     while True:
         data = client_socket.recv(1800).decode()
-        parsed_data=json.loads(data)
+        print(data)
+        if '}{' in data:
+            messages = data.split('}{')
+            messages[0] = messages[0] + '}'
+            messages[-1] = '{' + messages[-1]
+            parsed_data=json.loads(messages[-1])
+        else:
+            parsed_data=json.loads(data)
         print(parsed_data['reason'])
         
-        if parsed_data['reason'] == "It's your turn!":
+        if "It's your turn!" in data:
             turn = True
             turn_label.config(text="It's your turn!")
-        elif "Player" in parsed_data['reason']:
+        elif "Player" in data:
             turn_label.config(text=parsed_data['reason'])
         elif parsed_data['reason'].isupper():
             temp_player_letters[current_letter_col] = parsed_data['reason']
@@ -453,16 +461,17 @@ def game_rounds():
             turn = False
         elif parsed_data['reason'] == "check":
             print(parsed_data['status'])
-            player_letters = parsed_data['letters'].copy()
-            temp_player_letters = parsed_data['letters'].copy()
-            score += int(parsed_data['score'])
-            score_label.config(text=f"Score: {parsed_data['score']}")
-            special_tiles = {
-                tuple(map(int, key.split(','))): value
-                for key, value in parsed_data['special_tiles'].items()
-            }
-            place_special_tiles()
-            letter_frame_config(temp_player_letters)
+            if parsed_data['status'] == "valid":
+                player_letters = parsed_data['letters'].copy()
+                temp_player_letters = parsed_data['letters'].copy()
+                score += int(parsed_data['score'])
+                score_label.config(text=f"Score: {parsed_data['score']}")
+                special_tiles = {
+                    tuple(map(int, key.split(','))): value
+                    for key, value in parsed_data['special_tiles'].items()
+                }
+                place_special_tiles()
+                letter_frame_config(temp_player_letters)
         elif parsed_data['reason'] == "update":
             special_tiles = {
                 tuple(map(int, key.split(','))): value
