@@ -5,6 +5,13 @@ import socket
 import threading
 import json
 import random
+import sys
+
+if len(sys.argv) < 2:
+    print("Trebuie file path dictionar..")
+    sys.exit(1)
+
+file_path = sys.argv[1]
 
 alphabet = ['A', 'B', 'C', 'D','E', 'F', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'X', 'Z']
 letter_points = {
@@ -113,7 +120,7 @@ total_clients = 0
 lock = threading.Lock()
 
 def is_word_in_dict(word):
-    file_path = r"C:\\Users\\Raluci\\OneDrive\\Desktop\\python\\Maximiuc_Teodora_3B2\\Scrabble-ProiectA\\ro_RO.dic"
+    global file_path
     with open(file_path, 'r') as file:
         for line in file:
             if line.strip() == word:
