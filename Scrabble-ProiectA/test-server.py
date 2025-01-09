@@ -120,6 +120,7 @@ total_clients = 0
 lock = threading.Lock()
 
 def is_word_in_dict(word):
+# Functie care verifica daca un cuvant este in dictionar
     global file_path
     with open(file_path, 'r') as file:
         for line in file:
@@ -135,6 +136,7 @@ def check_words_in_dict(words):
     return True
 
 def check_orizontal_extension(row, startCol, endCol):
+# Functie care verifica daca in dreapta sau stanga cuvantului se afla alte litere adiacente
     i = 0
     j = 0
     while special_tiles.get((row, startCol - i - 1), "").isupper():
@@ -144,6 +146,7 @@ def check_orizontal_extension(row, startCol, endCol):
     return i, j
 
 def check_vertical_extension(startRow, endRow, col):
+# Functie care verifica daca deasupra sau dedesuptul cuvantului se afla alte litere adiacente
     i = 0
     j = 0
     while special_tiles.get((startRow - i - 1, col), "").isupper():
@@ -153,6 +156,7 @@ def check_vertical_extension(startRow, endRow, col):
     return i, j
 
 def apply_bonus(row, col, current_word):
+# Verificam daca litera a fost plasata pe un tile cu bonus. Daca da, aplicam acel bonus
     global special_tiles
     tile_type = special_tiles.get((row, col), "")
     word_points = letter_points[current_word[(row, col)]]
@@ -170,6 +174,7 @@ def apply_bonus(row, col, current_word):
     return word_points, to_multiply
 
 def get_orizontal_word(i, j, row, col, current_word):
+# Functie care in functie de i si j-ul primit (adica cate litere in dreapta si cate litere), alcatuieste cuvantul din acel interval
     word_points = 0
     word = ""
     pos = col - i
@@ -185,6 +190,7 @@ def get_orizontal_word(i, j, row, col, current_word):
     return word, word_points
 
 def get_vertical_word(i, j, row, col, current_word):
+# Functie care in functie de i si j-ul primit (adica cate litere deasupra si cate litere dedeupt), alcatuieste cuvantul din acel interval
     word_points = 0
     word = ""
     pos = row - i
@@ -201,6 +207,9 @@ def get_vertical_word(i, j, row, col, current_word):
     return word, word_points
 
 def validate_word(current_word, player_letters):
+# Functie care primeste un cuvant de la client si verifica daca este corect
+# In aceasta functie, este implementata si calcularea scorului daca cuvantul este valid
+# Presupune de la inceput ca cuvantul este valid, iar dupa verificari decide daca este sau nu
     global turn, special_tiles
     valid = 1
     rows = [key[0] for key in current_word.keys()]
@@ -208,6 +217,7 @@ def validate_word(current_word, player_letters):
     words_to_check = []
     word = ""
     word_points = 0
+    # Daca este primul tur, o litera trebuie sa fie pe tile-ul stea (7,7), tile de start
     if turn == 1:
         valid = 0
         for key in current_word.keys():
@@ -216,8 +226,10 @@ def validate_word(current_word, player_letters):
                 break
     if valid == 0:
         return [], 0
+    # Verifica daca toate literele sunt ori pe acelasi rand, ori pe aceeasi coloana
     if all(x == rows[0] for x in rows) or all(x == columns[0] for x in columns): 
-        if all(x == rows[0] for x in rows) and valid == 1: # orizontal  
+        if all(x == rows[0] for x in rows) and valid == 1: # cuvant orizontal  
+            # Sortam literele sa fie in ordinea lor pe tabla (sunt cazuri cand clientul nu pune literele in ordinea lor de pe tabla)
             sorted_keys = sorted(current_word.keys(), key=lambda key: key[1])
             current_word = {key: current_word[key] for key in sorted_keys}
             columns = [key[1] for key in current_word.keys()]
@@ -225,6 +237,7 @@ def validate_word(current_word, player_letters):
             j = 0
             i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
             print(f"{i} {j}")
+            # Parcurgem cuvantul in functie de lungimea sa (impreuna cu cazul daca au fost gasite litere cu care se imbina deja pe tabla sau nu)
             pos = columns[0] - i
             word_points = 0
             to_multiply = 1
@@ -259,7 +272,7 @@ def validate_word(current_word, player_letters):
                 if not check_words_in_dict(words_to_check):
                     valid = 0
                 print(f"Total points: {word_points}")
-        elif all(x == columns[0] for x in columns) and valid == 1: # vertical
+        elif all(x == columns[0] for x in columns) and valid == 1: # cuvant vertical
             sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
             current_word = {key: current_word[key] for key in sorted_keys}
             rows = [key[0] for key in current_word.keys()]
