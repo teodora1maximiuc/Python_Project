@@ -13,9 +13,9 @@ letter_points = {
     'S': 1, 'T': 1, 'U': 1, 'V': 4, 'X': 10, 'Z': 8
 }
 letter_counts = {
-    'A': 10, 'B': 2, 'C': 5, 'D': 4, 'E': 9, 'F': 2, 'G': 2, 'H': 2, 
-    'I': 11, 'J': 1, 'L': 5, 'M': 3, 'N': 6, 'O': 6, 'P': 4, 'R': 6, 
-    'S': 6, 'T': 7, 'U': 5, 'V': 2, 'X': 1, 'Z': 1
+    'A': 8, 'B': 2, 'C': 5, 'D': 4, 'E': 8, 'F': 2, 'G': 2, 'H': 2, 
+    'I': 9, 'J': 1, 'L': 5, 'M': 2, 'N': 3, 'O': 6, 'P': 3, 'R': 3, 
+    'S': 5, 'T': 5, 'U': 5, 'V': 2, 'X': 1, 'Z': 1
 }
 valid_2_letter_words = [
     "AA", "AB", "AC", "AD", "AH", "AI", "AL", "AM", "AN", "AR", "AS", "AT", "AU", "AX", "AZ",
@@ -148,7 +148,7 @@ def check_vertical_extension(startRow, endRow, col):
 def apply_bonus(row, col, current_word):
     global special_tiles
     tile_type = special_tiles.get((row, col), "")
-    word_points = 0
+    word_points = letter_points[current_word[(row, col)]]
     to_multiply = 1
     if tile_type == "" or tile_type == "stea":
         word_points = letter_points[current_word[(row, col)]]
@@ -164,7 +164,6 @@ def apply_bonus(row, col, current_word):
 
 def get_orizontal_word(i, j, row, col, current_word):
     word_points = 0
-    to_multiply = 1
     word = ""
     pos = col - i
     while pos != col + j + 1:
@@ -175,27 +174,23 @@ def get_orizontal_word(i, j, row, col, current_word):
             word += current_word[(row, pos)]
             add, mul = apply_bonus(row, pos, current_word)
             word_points += add
-            to_multiply *= mul
         pos += 1
-    word_points *= to_multiply
     return word, word_points
 
 def get_vertical_word(i, j, row, col, current_word):
     word_points = 0
-    to_multiply = 1
     word = ""
     pos = row - i
     while pos != row + j + 1:
         if special_tiles.get((pos, col), "").isupper():
             word += special_tiles[((pos, col))]
             add = letter_points[special_tiles[((pos, col))]]
+            word_points += add
         elif (pos, col) in current_word:
             word += current_word[(pos, col)]
             add, mul = apply_bonus(pos, col, current_word)
             word_points += add
-            to_multiply *= mul
         pos += 1
-    word_points *= to_multiply
     return word, word_points
 
 def validate_word(current_word, player_letters):
@@ -206,13 +201,19 @@ def validate_word(current_word, player_letters):
     words_to_check = []
     word = ""
     word_points = 0
+    if turn == 1:
+        valid = 0
+        for key in current_word.keys():
+            if key[0] == 7 and key[1] == 7:
+                valid = 1
+                break
+    if valid == 0:
+        return [], 0
     if all(x == rows[0] for x in rows) or all(x == columns[0] for x in columns): 
         if all(x == rows[0] for x in rows) and valid == 1: # orizontal  
             sorted_keys = sorted(current_word.keys(), key=lambda key: key[1])
             current_word = {key: current_word[key] for key in sorted_keys}
             columns = [key[1] for key in current_word.keys()]
-            if turn == 1 and (rows[0] != 7 or all(x !=7 for x in columns)):
-                valid = 0 
             i = 0
             j = 0
             i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
@@ -228,7 +229,7 @@ def validate_word(current_word, player_letters):
                     word += current_word[(rows[0], pos)]
                     add, mul = apply_bonus(rows[0], pos, current_word)
                     word_points += add
-                    # print(f"add = {add}")
+                    print(f"add = {add} & mul = {mul}")
                     to_multiply *= mul
                 else: # nu sunt consecutive
                     valid = 0
@@ -242,7 +243,7 @@ def validate_word(current_word, player_letters):
                     i, j = check_vertical_extension(rows[0], rows[0], column)
                     if i!=0 or j!=0 :
                         word, add = get_vertical_word(i, j, rows[0], column, current_word)
-                        # print(f"add = {add}")
+                        print(f"add = {add}")
                         words_to_check.append(word)
                         word_points += add
                 if len(current_word) == 1 and len(words_to_check) != 1:
@@ -255,8 +256,6 @@ def validate_word(current_word, player_letters):
             sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
             current_word = {key: current_word[key] for key in sorted_keys}
             rows = [key[0] for key in current_word.keys()]
-            if turn == 1 and (columns[0] != 7 and all(x !=7 for x in rows)):
-                valid = 0 
             i = 0
             j = 0
             i, j = check_vertical_extension(rows[0], rows[len(rows)-1], columns[0])
@@ -271,7 +270,7 @@ def validate_word(current_word, player_letters):
                 elif (pos, columns[0]) in current_word:
                     word += current_word[(pos, columns[0])]
                     add, mul = apply_bonus(pos, columns[0], current_word)
-                    # print(f"add = {add}")
+                    print(f"add = {add} & mul = {mul}")
                     word_points += add
                     to_multiply *= mul
                 else: # nu sunt consecutive

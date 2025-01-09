@@ -37,14 +37,16 @@ client_socket = ""
 score = 0
 def done():
     global current_word
-    current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
-    data = {
-        'reason' : "done",
-        'current_word' : current_word_str_keys,
-        'letters' : temp_player_letters,
-    }
-    client_socket.send(json.dumps(data).encode())
-    current_word.clear()
+    print (bool(current_word))
+    if bool(current_word):
+        current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
+        data = {
+            'reason' : "done",
+            'current_word' : current_word_str_keys,
+            'letters' : temp_player_letters,
+        }
+        client_socket.send(json.dumps(data).encode())
+        current_word.clear()
 
 ready = False
 def ready():
@@ -452,6 +454,7 @@ def game_rounds():
             turn = True
             turn_label.config(text="It's your turn!")
         elif "Player" in data:
+            turn = False
             turn_label.config(text=parsed_data['reason'])
         elif parsed_data['reason'].isupper():
             temp_player_letters[current_letter_col] = parsed_data['reason']
@@ -465,7 +468,7 @@ def game_rounds():
                 player_letters = parsed_data['letters'].copy()
                 temp_player_letters = parsed_data['letters'].copy()
                 score += int(parsed_data['score'])
-                score_label.config(text=f"Score: {parsed_data['score']}")
+                score_label.config(text=f"Score: {score}")
                 special_tiles = {
                     tuple(map(int, key.split(','))): value
                     for key, value in parsed_data['special_tiles'].items()
