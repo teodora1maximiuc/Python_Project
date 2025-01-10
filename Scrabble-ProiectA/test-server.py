@@ -118,9 +118,20 @@ turn = 0
 ready_count = 0
 total_clients = 0
 lock = threading.Lock()
+"""
+Variabile globale:
+    - special_tiles: un dictionar unde este memorata board-ul curent al jocului, la inceput fiind initializat cu pozitiile prestabilite ale bonusurilor
+    , iar mai apoi cu eventuale litere puse de clienti pe tabla. Bonusurile sunt aplicate doar odata, atunci cand un client pune o litera pe acel tile.
+    - clients: tine intr-un vector toti clientii conectati
+    - players_letters: memoreaza literele curente ale tuturor jucatorilor
+    - turns: memoreaza pozitia tuturor jucatorilor pentru a determina randul sau
+    - scores: memoreaza scorul jucatorilor
+"""
 
 def is_word_in_dict(word):
-# Functie care verifica daca un cuvant este in dictionar
+    """
+    Functie care verifica daca un cuvant este in dictionar
+    """
     global file_path
     with open(file_path, 'r') as file:
         for line in file:
@@ -136,7 +147,9 @@ def check_words_in_dict(words):
     return True
 
 def check_orizontal_extension(row, startCol, endCol):
-# Functie care verifica daca in dreapta sau stanga cuvantului se afla alte litere adiacente
+    """
+    Functie care verifica daca in dreapta sau stanga cuvantului se afla alte litere adiacente
+    """
     i = 0
     j = 0
     while special_tiles.get((row, startCol - i - 1), "").isupper():
@@ -146,7 +159,9 @@ def check_orizontal_extension(row, startCol, endCol):
     return i, j
 
 def check_vertical_extension(startRow, endRow, col):
-# Functie care verifica daca deasupra sau dedesuptul cuvantului se afla alte litere adiacente
+    """
+    Functie care verifica daca deasupra sau dedesuptul cuvantului se afla alte litere adiacente
+    """
     i = 0
     j = 0
     while special_tiles.get((startRow - i - 1, col), "").isupper():
@@ -156,7 +171,13 @@ def check_vertical_extension(startRow, endRow, col):
     return i, j
 
 def apply_bonus(row, col, current_word):
-# Verificam daca litera a fost plasata pe un tile cu bonus. Daca da, aplicam acel bonus
+    """
+    Functie care verifica daca litera a fost plasata pe un tile cu bonus. Daca da, aplicam acel bonus
+    Parametrii:
+        - row: linia unde se afla litera
+        - col: coloana ...
+        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    """
     global special_tiles
     tile_type = special_tiles.get((row, col), "")
     word_points = letter_points[current_word[(row, col)]]
@@ -174,7 +195,15 @@ def apply_bonus(row, col, current_word):
     return word_points, to_multiply
 
 def get_orizontal_word(i, j, row, col, current_word):
-# Functie care in functie de i si j-ul primit (adica cate litere in dreapta si cate litere), alcatuieste cuvantul din acel interval
+    """
+    Functie care formeaza un cuvant pus orizontal dintr-un interval de coloane pus pe tabla, impreuna cu eventuale extensii
+    Parametrii:
+        - i: cate coloane in dreapta fata de literele puse pe tabla de client
+        - j: cate coloane in stanga ...
+        - row: linia unde se afla cuvantul
+        - col: prima coloane unde se afla litera pusa de client
+        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    """
     word_points = 0
     word = ""
     pos = col - i
@@ -190,7 +219,15 @@ def get_orizontal_word(i, j, row, col, current_word):
     return word, word_points
 
 def get_vertical_word(i, j, row, col, current_word):
-# Functie care in functie de i si j-ul primit (adica cate litere deasupra si cate litere dedeupt), alcatuieste cuvantul din acel interval
+    """
+    Functie care formeaza un cuvant pus vertical dintr-un interval de linii pus pe tabla, impreuna cu eventuale extensii
+    Parametrii:
+        - i: cate linii deasupra fata de literele puse pe tabla de client
+        - j: cate linii dedesupt ...
+        - row: prima linie unde se afla litera pusa de client
+        - col: coloana pe care e cuvantul
+        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    """
     word_points = 0
     word = ""
     pos = row - i
@@ -207,9 +244,20 @@ def get_vertical_word(i, j, row, col, current_word):
     return word, word_points
 
 def validate_word(current_word, player_letters):
-# Functie care primeste un cuvant de la client si verifica daca este corect
-# In aceasta functie, este implementata si calcularea scorului daca cuvantul este valid
-# Presupune de la inceput ca cuvantul este valid, iar dupa verificari decide daca este sau nu
+    """
+    Functie care primeste un cuvant de la client si verifica daca este corect
+    Parametrii:
+        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+        - player_letters: literele curente ale unui client
+    Functionalitati:
+        - Verifica daca pozitia cuvantului este buna:
+        1. La primul tur, o litera trebuie pusa pe tile-ul din mijloc
+        2. Cuvantul trebuie sa aiba litere puse pe aceeasi coloana sau aceeasi linie (vertical sau orizontal)
+        3. Verifica daca se conecteaza cu literele deja existente pe tabla (check_vertical_extension sau check_orizontal_extension)
+        4. Verifica daca toate cuvintele care sunt formate sunt valide (get_vertical_word sau get_orizontal_word + check_words_in_dict)
+        - In timpul verificarii cuvintelor este calculat si scorul dat de valoarea cuvintelor formate, impreuna cu bonusurile de pe tabla (apply_bonus)
+        - Daca cuvantul este valid, se reatribuie literele lipsa si se returneaza acestea impreuna cu scorul
+    """
     global turn, special_tiles
     valid = 1
     rows = [key[0] for key in current_word.keys()]
@@ -217,7 +265,6 @@ def validate_word(current_word, player_letters):
     words_to_check = []
     word = ""
     word_points = 0
-    # Daca este primul tur, o litera trebuie sa fie pe tile-ul stea (7,7), tile de start
     if turn == 1:
         valid = 0
         for key in current_word.keys():
@@ -237,7 +284,6 @@ def validate_word(current_word, player_letters):
             j = 0
             i, j = check_orizontal_extension(rows[0], columns[0], columns[len(columns)-1])
             print(f"{i} {j}")
-            # Parcurgem cuvantul in functie de lungimea sa (impreuna cu cazul daca au fost gasite litere cu care se imbina deja pe tabla sau nu)
             pos = columns[0] - i
             word_points = 0
             to_multiply = 1
@@ -253,7 +299,7 @@ def validate_word(current_word, player_letters):
                     to_multiply *= mul
                 else: # nu sunt consecutive
                     valid = 0
-                    break
+                    return [], 0
                 pos += 1
             if valid != 0:
                 print(f"{word_points} x {to_multiply}")
@@ -271,6 +317,7 @@ def validate_word(current_word, player_letters):
                 print(words_to_check)
                 if not check_words_in_dict(words_to_check):
                     valid = 0
+                    return [], 0
                 print(f"Total points: {word_points}")
         elif all(x == columns[0] for x in columns) and valid == 1: # cuvant vertical
             sorted_keys = sorted(current_word.keys(), key=lambda key: key[0])
@@ -295,7 +342,7 @@ def validate_word(current_word, player_letters):
                     to_multiply *= mul
                 else: # nu sunt consecutive
                     valid = 0
-                    break
+                    return [], 0
                 pos += 1
             if valid != 0:
                 word_points *= to_multiply
@@ -312,9 +359,14 @@ def validate_word(current_word, player_letters):
                 print(words_to_check)
                 if not check_words_in_dict(words_to_check):
                     valid = 0
+                    return [], 0
                 print(f"Total points: {word_points}")
-        else: valid = 0
-    else: valid = 0
+        else: 
+            valid = 0
+            return [], 0
+    else: 
+        valid = 0
+        return [], 0
     if valid == 1:
         print("Valid word!")
         print(player_letters)
@@ -347,6 +399,16 @@ def bag_count():
     return count
 
 def handle_client(client_socket, addr):
+    """
+    Functie pentru gestionarea fiecarui client. 
+    Parametrii:
+        - client_socket: Obiectul socket al clientului.
+        - addr: Adresa clientului.
+    Functionalitati:
+        - Asteapta sa primeasca de la client mesajul "ready";
+        - Daca un client este ready, acestuia i se vor genera 7 litere pentru joc, si se vor initializa variabile precum scorul si randul sau;
+        - Daca toti clientii sunt ready, se trimite la fiecare client board-ul curent si literele sale, apoi incepe jocul (start_game).
+    """
     global ready_count, total_clients, special_tiles
     print(f"New player: {addr}")
     client_socket.send("Wait for ready..".encode())
@@ -381,6 +443,15 @@ def handle_client(client_socket, addr):
             start_game()
 
 def start_game():
+    """
+    Functie pentru gestionarea jocului si a turelor. 
+    Functionalitati:
+        - Se trimite catre clienti al cui rand este, si asteapta sa primeasca raspuns de la clientul curent pentru gestionarea miscarii sale.
+        - Un client are doua comenzi care semnaleaza finalizarea unei ture, switch si done
+        - Switch: atunci cand clientul vrea sa schimbe o litera, fara a pune un cuvant pe tabla
+        - Done: punerea unui cuvant pe tabla ca mai apoi serverul sa verifice daca este valid (Daca nu este valid, turn-ul nu isi schimba valoarea pentru a ramane randul sau)
+        - Randul unui client se schimba dupa ce a schimbat o litera sau a validat un cuvant cu succes
+    """
     global turn, special_tiles
     current_turn = 0
     while True:
@@ -465,18 +536,12 @@ def start_game():
                     c.send(json.dumps(data_to_send).encode('utf-8'))
         else:
             print(f"Message from {current_addr}: {parsed_message}")
-            # for c in clients:
-            #     if c != current_client:
-            #         special_tiles_str_keys = {f"{key[0]},{key[1]}": value for key, value in special_tiles.items()}
-            #         data_to_send = {
-            #             "reason": "update",
-            #             "special_tiles": special_tiles_str_keys
-            #         }
-            #         print (c)
-            #         c.send(json.dumps(data_to_send).encode('utf-8'))
         current_turn = (current_turn + 1) % total_clients
 
 def server():
+    """
+    Porneste serverul si gestioneaza conexiunile clientilor, creand un thread pentru fiecare client.
+    """
     global total_clients
     host = "127.0.0.1"
     port = 5555
