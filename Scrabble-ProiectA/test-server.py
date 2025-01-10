@@ -20,9 +20,9 @@ letter_points = {
     'S': 1, 'T': 1, 'U': 1, 'V': 4, 'X': 10, 'Z': 8
 }
 letter_counts = {
-    'A': 8, 'B': 2, 'C': 5, 'D': 4, 'E': 8, 'F': 2, 'G': 2, 'H': 2, 
-    'I': 9, 'J': 1, 'L': 5, 'M': 2, 'N': 3, 'O': 6, 'P': 3, 'R': 3, 
-    'S': 5, 'T': 5, 'U': 5, 'V': 2, 'X': 1, 'Z': 1
+    'A': 1, 'B': 1, 'C': 1, 'D': 1, 'E': 0, 'F': 1, 'G': 1, 'H': 0, 
+    'I': 0, 'J': 0, 'L': 1, 'M': 1, 'N': 1, 'O': 2, 'P': 1, 'R': 1, 
+    'S': 0, 'T': 1, 'U': 1, 'V': 1, 'X': 0, 'Z': 0
 }
 valid_2_letter_words = [
     "AA", "AB", "AC", "AD", "AH", "AI", "AL", "AM", "AN", "AR", "AS", "AT", "AU", "AX", "AZ",
@@ -140,10 +140,10 @@ def is_word_in_dict(word):
     return False
 
 def check_words_in_dict(words):
-    for word in words:
-        if word not in valid_2_letter_words and not is_word_in_dict(word):
-            print(word)
-            return False
+    # for word in words:
+    #     if word not in valid_2_letter_words and not is_word_in_dict(word):
+    #         print(word)
+    #         return False
     return True
 
 def check_orizontal_extension(row, startCol, endCol):
@@ -373,13 +373,13 @@ def validate_word(current_word, player_letters):
         i = 0
         for letter in player_letters:
             if letter == '': 
-                if all(letter_counted == 0 for letter_counted in letter_counts):
+                available_letters = [letter for letter, count in letter_counts.items() if count > 0]
+                if not available_letters:
                     print("No more letters")
                 else:
-                    random_letter = random.choice(alphabet)
-                    while letter_counts[random_letter] == 0:
-                        random_letter = random.choice(alphabet)
+                    random_letter = random.choice(available_letters)
                     player_letters[i] = random_letter
+                    print(player_letters[i])
                     
                     letter_counts[random_letter] -= 1
             i += 1
@@ -536,6 +536,16 @@ def start_game():
                     c.send(json.dumps(data_to_send).encode('utf-8'))
         else:
             print(f"Message from {current_addr}: {parsed_message}")
+        if not all(any(l != '' for l in player_letters) for player_letters in players_letters):
+            max_score = max(scores)
+            max_index = scores.index(max_score)
+            for c in clients:
+                with game_lock:
+                    data_to_send = {
+                        "reason": f"Player {max_index} won with {scores[max_index]} points!"
+                    }
+                    c.send(json.dumps(data_to_send).encode('utf-8'))
+            return
         current_turn = (current_turn + 1) % total_clients
 
 def server():

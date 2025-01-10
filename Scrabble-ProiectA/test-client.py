@@ -35,9 +35,26 @@ current_word = {}
 turn = False
 client_socket = ""
 score = 0
+
+"""
+Variabile globale:
+    - special_tiles: un dictionar unde este memorata board-ul curent al jocului, la inceput fiind initializat cu pozitiile prestabilite ale bonusurilor
+    , iar mai apoi cu eventuale litere puse de clienti pe tabla. Bonusurile sunt aplicate doar odata, atunci cand un client pune o litera pe acel tile.
+    - playes_letters: memoreaza literele generale curente ale jucatorului inainte ca acesta sa le puna pe tabla
+    - temp_playes_letters: memoreaza literele jucatorului in functie de ce foloseste pentru a pune pe tabla
+    - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    - current_letter: litera curenta luata de jucator dupa ce a dat click pe ea pentru a o plasa altundeva
+    - current_letter_col: coloana (sau pozitia) literei curente din cele 7 litere ale jucatorului
+    - turn: variabila booleana care arata daca e randul jucatorului (True) sau nu (False)
+    - score: memoreaza scorul jucatorului
+"""
+
 def done():
+    """
+    Functie care este folosita atunci cand clientul apasa pe butonul "Done", pentru a trimite cuvantul pus pe tabla si a verifica daca este corect, 
+    impreuna cu literele sale
+    """
     global current_word
-    print (bool(current_word))
     if bool(current_word):
         current_word_str_keys = {f"{key[0]},{key[1]}": value for key, value in current_word.items()}
         data = {
@@ -50,6 +67,9 @@ def done():
 
 ready = False
 def ready():
+    """
+    Functie care este folosita atunci cand clientul apasa pe butonul "Ready", pentru a semnala serverului ca este gata de a incepe jocul 
+    """
     global ready
     ready_canvas = tk.Canvas(
         menu, width=600, height=140, bg="#a2d698", highlightthickness=0
@@ -97,6 +117,9 @@ info_label = tk.Label(
 )
 info_label.place(x=0, y=280, width=600, height=120)
 def place_letter(row, col, letter):
+    """
+    Functie care plaseaza o litera a jucatorului pe tabla
+    """
     global board_frame, turn
     points = letter_points[letter]
     canvas = tk.Canvas(
@@ -112,6 +135,12 @@ def place_letter(row, col, letter):
 """SCRABBLE GAME - ELEMENTE"""
             # vvvv
 def on_cell_click(row, col):
+    """
+    Functie folosita atunci cand un tile de pe plansa este apasat
+    Parametrii:
+        - row: randul tile-ului
+        - col: coloana tile-ului
+    """
     global current_letter, turn
     if turn == True:
         if current_letter != "":
@@ -119,7 +148,10 @@ def on_cell_click(row, col):
             current_word[(row, col)] = current_letter
             current_letter = ""
 def place_special_tiles(): 
-    print ("am intrat in place_special_tiles")
+    """
+    Functie care actualizeaza plansa de joc.
+    """
+    # print ("am intrat in place_special_tiles")
     cells = [[None for _ in range(15)] for _ in range(15)]
     cell_size = 600 // 15
     for row in range(15):
@@ -160,6 +192,9 @@ def place_special_tiles():
         board_frame.grid_columnconfigure(i, weight=1)
 
 def on_letter_frame_click(c, color):
+    """
+    Functie folosita atunci cand jucatorul apasa pe literele sale, pentru scopul de a lua o litera sau de a interschimba pozitia a doua litere
+    """
     global current_letter, prev_letter_col, temp_player_letters, turn, current_letter_col
     if turn == True:
         if current_letter == "":
@@ -229,24 +264,35 @@ def on_letter_frame_click(c, color):
         prev_letter_col = c
 
 def letter_frame_config (temp_player_letters):
+    """
+    Functie care configureaza in interfata grafica literele jucatorului
+    """
     for col in range(7):
         letter = temp_player_letters[col]
-        points = letter_points[letter]
-        
+        text = ""
+        color = "white"
+        if letter !='':
+            points = letter_points[letter]
+            text = f"{letter}\n{points}"
+            color = "#dec5b6"
         btn = tk.Button(
             letter_frame,
-            text=f"{letter}\n{points}",
+            text=text,
             font=("Montserrat", 12, "bold"),
-            bg="#dec5b6",
+            bg=color,
             relief="ridge",
             width=3,
             height=3,
             anchor="n",
             justify="center",
-            command=lambda c=col, color="#dec5b6": on_letter_frame_click(c, color)
+            command=lambda c=col, color=color: on_letter_frame_click(c, color)
         )
         btn.grid(row=0, column=col, sticky="nsew")
 def switch_letter():
+    """
+    Functie folosita cand jucatorul apasa butonul "Switch". Daca are o litera in mana, acesta va trimite serverului ca isi foloseste tura pentru a schimba
+    o litera a sa.
+    """
     global current_letter, turn, player_letters, current_letter_col
     print(current_letter)
     if turn == True and current_letter!="":
@@ -256,6 +302,11 @@ def switch_letter():
         client_socket.send(json.dumps(data_to_send).encode('utf-8'))
         current_letter = ""
 def undo():
+    """
+    Functie folosita cand jucatorul apasa butonul "Undo". Aceasta functie ia literele puse pe tabla de cate jucator si le repune in letter_frame.
+    Functionalitate:
+        - Atunci cand jucatorul a gresit plasarea unor litere si vrea sa le puna altundeva pe tabla
+    """
     global temp_player_letters, player_letters, current_word
     current_word.clear()
     place_special_tiles()
@@ -284,6 +335,9 @@ def undo():
             # ^^^^^
 """SCRABBLE GAME - ELEMENTE"""
 def show_board():
+    """
+    Functie care este apelata cand incepe jocul, pentru a initializa si deschide fereastra cu plansa de joc.
+    """
     # print("am intrat in show_board")
     global root, board_frame, letter_frame, turn_label, score_label
     root = tk.Tk()
@@ -411,6 +465,14 @@ def show_board():
     root.mainloop()
 
 def client():
+    """
+    Creeaza si gestioneaza conexiunea clientului cu serverul.
+    Functionalitate:
+        - Se conecteaza la server.
+        - Asteapta sa fie pregatit (ready).
+        - Primeste date JSON despre tiles si litere odata ce jocul incepe
+        - Afiseaza tabla de joc
+    """
     global ready, temp_player_letters, special_tiles, turn, turn_label, client_socket, player_letters
     ready = False
     host = "127.0.0.1"
@@ -437,6 +499,16 @@ def client():
         print (player_letters)
         show_board()
 def game_rounds():
+    """
+    Functie de gestionare a rundelor
+    Functionalitate:
+        - Primeste de la server al cui rand este 
+        - Gestioneaza mesajele primite de la acesta:
+        1. Raspunsul pentru "Switch", cu litera inlocuitoare
+        2. Raspunsul pentru "Done", cu invalid daca cuvantul este gresit sau valid daca cuvantul este corect impreuna cu literele,
+        special_tiles (noua plansa de joc) si scorul.
+        3. Mesajul pentru clientii carora nu le este randul, pentru a-i actualiza cu noua plansa de joc (special_letters)
+    """
     global ready, temp_player_letters, special_tiles, turn, turn_label, player_letters, current_letter, score, score_label
     while True:
         data = client_socket.recv(1800).decode()
@@ -456,13 +528,13 @@ def game_rounds():
         elif "Player" in data:
             turn = False
             turn_label.config(text=parsed_data['reason'])
-        elif parsed_data['reason'].isupper():
+        elif parsed_data['reason'].isupper(): #Raspuns switch
             temp_player_letters[current_letter_col] = parsed_data['reason']
             player_letters = temp_player_letters.copy()
             letter_frame_config(temp_player_letters)
             current_letter = ""
             turn = False
-        elif parsed_data['reason'] == "check":
+        elif parsed_data['reason'] == "check": #Raspuns done
             print(parsed_data['status'])
             if parsed_data['status'] == "valid":
                 player_letters = parsed_data['letters'].copy()
@@ -475,6 +547,20 @@ def game_rounds():
                 }
                 place_special_tiles()
                 letter_frame_config(temp_player_letters)
+            elif parsed_data['status'] == "invalid":
+                popup = tk.Toplevel(root)
+                popup.title("Invalid")
+                scrabble_width = root.winfo_screenwidth()
+                scrabble_height = root.winfo_screenheight()
+                popup_width = 200
+                popup_height = 50
+                top = (scrabble_height//2) - (popup_height//2)
+                right = (scrabble_width//2) - (popup_width//2)
+                popup.geometry(f"{popup_width}x{popup_height}+{right}+{top}")
+                text = "Cuvant invalid!\n"
+                label = tk.Label(popup, text=text, font=("Montserrat",12), justify="left", anchor="nw")
+                label.pack(padx=10, pady=10, fill="both", expand=True)
+                undo()
         elif parsed_data['reason'] == "update":
             special_tiles = {
                 tuple(map(int, key.split(','))): value
