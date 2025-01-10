@@ -149,6 +149,9 @@ def check_words_in_dict(words):
 def check_orizontal_extension(row, startCol, endCol):
     """
     Functie care verifica daca in dreapta sau stanga cuvantului se afla alte litere adiacente
+    Returneaza: 
+        - coloana de unde incepe (i - int)
+        - coloana unde se termina (j - int)
     """
     i = 0
     j = 0
@@ -161,6 +164,9 @@ def check_orizontal_extension(row, startCol, endCol):
 def check_vertical_extension(startRow, endRow, col):
     """
     Functie care verifica daca deasupra sau dedesuptul cuvantului se afla alte litere adiacente
+    Returneaza: 
+        - randul de unde incepe (i - int)
+        - randul unde se termina (j - int)
     """
     i = 0
     j = 0
@@ -174,9 +180,12 @@ def apply_bonus(row, col, current_word):
     """
     Functie care verifica daca litera a fost plasata pe un tile cu bonus. Daca da, aplicam acel bonus
     Parametrii:
-        - row: linia unde se afla litera
-        - col: coloana ...
-        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+        - row (int): linia unde se afla litera
+        - col (int): coloana ...
+        - current_word (dict): un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    Returneaza:
+        - cate puncte trebuie adaugate (word_points - int)
+        - cate puncte trebuie sa inmulteasca tot cuvantul (to_multiply - int)
     """
     global special_tiles
     tile_type = special_tiles.get((row, col), "")
@@ -198,11 +207,14 @@ def get_orizontal_word(i, j, row, col, current_word):
     """
     Functie care formeaza un cuvant pus orizontal dintr-un interval de coloane pus pe tabla, impreuna cu eventuale extensii
     Parametrii:
-        - i: cate coloane in dreapta fata de literele puse pe tabla de client
-        - j: cate coloane in stanga ...
-        - row: linia unde se afla cuvantul
-        - col: prima coloane unde se afla litera pusa de client
-        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+        - i (int): cate coloane in dreapta fata de literele puse pe tabla de client
+        - j (int): cate coloane in stanga ...
+        - row (int): linia unde se afla cuvantul
+        - col (int): prima coloane unde se afla litera pusa de client
+        - current_word (dict): un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    Returneaza: 
+        - cuvantul gasit in interval (word - string)
+        - cate puncte valoreaza (word_points - int)
     """
     word_points = 0
     word = ""
@@ -222,11 +234,14 @@ def get_vertical_word(i, j, row, col, current_word):
     """
     Functie care formeaza un cuvant pus vertical dintr-un interval de linii pus pe tabla, impreuna cu eventuale extensii
     Parametrii:
-        - i: cate linii deasupra fata de literele puse pe tabla de client
-        - j: cate linii dedesupt ...
-        - row: prima linie unde se afla litera pusa de client
-        - col: coloana pe care e cuvantul
-        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+        - i (int): cate linii deasupra fata de literele puse pe tabla de client
+        - j (int): cate linii dedesupt ...
+        - row (int): prima linie unde se afla litera pusa de client
+        - col (int): coloana pe care e cuvantul
+        - current_word (dict): un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+    Returneaza: 
+        - cuvantul gasit in interval (word - string)
+        - cate puncte valoreaza (word_points - int)
     """
     word_points = 0
     word = ""
@@ -247,8 +262,8 @@ def validate_word(current_word, player_letters):
     """
     Functie care primeste un cuvant de la client si verifica daca este corect
     Parametrii:
-        - current_word: un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
-        - player_letters: literele curente ale unui client
+        - current_word (dictionar): un dictionar format din chei tuplu ce reprezinta pozitia unei litere si item cu valoarea literei
+        - player_letters (vector cu string): literele curente ale unui client
     Functionalitati:
         - Verifica daca pozitia cuvantului este buna:
         1. La primul tur, o litera trebuie pusa pe tile-ul din mijloc
@@ -256,7 +271,10 @@ def validate_word(current_word, player_letters):
         3. Verifica daca se conecteaza cu literele deja existente pe tabla (check_vertical_extension sau check_orizontal_extension)
         4. Verifica daca toate cuvintele care sunt formate sunt valide (get_vertical_word sau get_orizontal_word + check_words_in_dict)
         - In timpul verificarii cuvintelor este calculat si scorul dat de valoarea cuvintelor formate, impreuna cu bonusurile de pe tabla (apply_bonus)
-        - Daca cuvantul este valid, se reatribuie literele lipsa si se returneaza acestea impreuna cu scorul
+        - Daca cuvantul este valid, se reatribuie literele lipsa
+    Returneaza:
+        - noile litere ale playerului (player_letters - vector string)
+        - punctajul obtinut al cuvantului (score - int )
     """
     global turn, special_tiles
     valid = 1

@@ -119,6 +119,10 @@ info_label.place(x=0, y=280, width=600, height=120)
 def place_letter(row, col, letter):
     """
     Functie care plaseaza o litera a jucatorului pe tabla
+    Parametrii:
+        - row (int): randul unde sa fie plasata litera
+        - col (int): coloana ...
+        - letter (string): litera care trebuie plasata
     """
     global board_frame, turn
     points = letter_points[letter]
@@ -138,8 +142,8 @@ def on_cell_click(row, col):
     """
     Functie folosita atunci cand un tile de pe plansa este apasat
     Parametrii:
-        - row: randul tile-ului
-        - col: coloana tile-ului
+        - row (int): randul tile-ului
+        - col (int): coloana tile-ului
     """
     global current_letter, turn
     if turn == True:
@@ -194,6 +198,9 @@ def place_special_tiles():
 def on_letter_frame_click(c, color):
     """
     Functie folosita atunci cand jucatorul apasa pe literele sale, pentru scopul de a lua o litera sau de a interschimba pozitia a doua litere
+    Paramentrii:
+        - c (int): coloana unde este apasat butonul
+        - color (string): culoarea butonului
     """
     global current_letter, prev_letter_col, temp_player_letters, turn, current_letter_col
     if turn == True:
@@ -266,6 +273,8 @@ def on_letter_frame_click(c, color):
 def letter_frame_config (temp_player_letters):
     """
     Functie care configureaza in interfata grafica literele jucatorului
+    Parametrii:
+        - temp_player_letters (vector): memoreaza literele jucatorului in functie de ce foloseste pentru a pune pe tabla
     """
     for col in range(7):
         letter = temp_player_letters[col]
